@@ -100,9 +100,9 @@ input, textarea { font-family: var(--sans); }
   grid-template-rows: 100%;
   height: 100%;
 }
-@media (max-width: 700px) {
-  .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
-  .sidebar { display: none; }
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  .sidebar { display: none !important; }
   .mobile-nav { display: flex !important; }
 }
 
@@ -524,6 +524,29 @@ input, textarea { font-family: var(--sans); }
 }
 .fab:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(61,107,82,.45); }
 
+/* ── MORE DRAWER ── */
+.more-drawer {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  padding: 8px 0 32px;
+  z-index: 200;
+  box-shadow: 0 -4px 20px rgba(0,0,0,.12);
+}
+.more-drawer.open { display: block; }
+.more-drawer-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 8px auto 12px; }
+.more-drawer-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 24px; font-size: .95rem; color: var(--text-1); cursor: pointer;
+}
+.more-drawer-item:active { background: var(--bg2); }
+.more-drawer-item.active { color: var(--accent); font-weight: 600; }
+.drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 199; }
+.drawer-overlay.open { display: block; }
+
 /* ── MOBILE NAV ── */
 .mobile-nav {
   display: none;
@@ -664,7 +687,19 @@ input, textarea { font-family: var(--sans); }
     <div class="mob-item" data-view="agenda" onclick="navigate(this)"><div class="mob-icon">📅</div><span>Agenda</span></div>
     <div class="mob-item" data-view="finances" onclick="navigate(this)"><div class="mob-icon">💶</div><span>Finances</span></div>
     <div class="mob-item" data-view="contrats" onclick="navigate(this)"><div class="mob-icon">📋</div><span>Contrats</span></div>
-    <div class="mob-item" data-view="securite" onclick="navigate(this)"><div class="mob-icon">🔒</div><span>Sécurité</span></div>
+    <div class="mob-item" onclick="openMoreDrawer()"><div class="mob-icon">•••</div><span>Plus</span></div>
+  </div>
+
+  <!-- DRAWER OVERLAY -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeMoreDrawer()"></div>
+
+  <!-- MORE DRAWER -->
+  <div class="more-drawer" id="moreDrawer">
+    <div class="more-drawer-handle"></div>
+    <div class="more-drawer-item" data-view="sante" onclick="navigateDrawer(this)"><span style="font-size:1.3rem">❤️</span> Santé</div>
+    <div class="more-drawer-item" data-view="emails" onclick="navigateDrawer(this)"><span style="font-size:1.3rem">✉️</span> Emails</div>
+    <div class="more-drawer-item" data-view="objectifs" onclick="navigateDrawer(this)"><span style="font-size:1.3rem">🎯</span> Objectifs</div>
+    <div class="more-drawer-item" data-view="securite" onclick="navigateDrawer(this)"><span style="font-size:1.3rem">🔒</span> Sécurité</div>
   </div>
 </div>
 
@@ -1418,6 +1453,25 @@ function statTile(label,val,sub,mode='neutral'){
 }
 function typeColor(t){
   return{pro:'#5B8FD4',social:'#C45C2E',santé:'#3D6B52',health:'#3D6B52'}[t]||'#A09D98';
+}
+
+// ─── MORE DRAWER ───
+function openMoreDrawer(){
+  document.getElementById('moreDrawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('open');
+}
+function closeMoreDrawer(){
+  document.getElementById('moreDrawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+}
+function navigateDrawer(el){
+  closeMoreDrawer();
+  // Fake a nav-item click
+  const fakeEl = {dataset:{view:el.dataset.view}};
+  navigate(fakeEl);
+  // Highlight the "Plus" mob-item
+  document.querySelectorAll('.mob-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector('.mob-item:last-child').classList.add('active');
 }
 
 // ─── NAVIGATION ───
