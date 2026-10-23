@@ -1292,118 +1292,168 @@ const VIEWS = {
   },
 
   contrats() {
-    const c=DATA.contrats;
-    const alertes=c.assurances.filter(a=>a.statut==='alerte').concat(c.abonnements.filter(a=>a.statut==='alerte'));
-    const statusChip=(s)=>{
-      if(s==='alerte') return '<span class="chip chip-warn">⚠ Alerte</span>';
-      if(s==='absent') return '<span class="chip chip-danger">✗ Absent</span>';
-      return '<span class="chip chip-ok">✓ OK</span>';
+    // Load from localStorage
+    const loadContrats = () => {
+      try {
+        const saved = localStorage.getItem('mum_contrats');
+        if(saved) return JSON.parse(saved);
+      } catch(e) {}
+      // Defaults pre-remplis
+      return {
+        abonnements: [
+          {id:1,nom:'Free Box',cat:'Internet',icon:'📡',montant:40,periode:'mois',jour:1,note:'Freebox — internet + TV'},
+          {id:2,nom:'Free Mobile',cat:'Mobile',icon:'📱',montant:20,periode:'mois',jour:5,note:'Forfait mobile'},
+          {id:3,nom:'Netflix',cat:'Streaming',icon:'🎬',montant:17.99,periode:'mois',jour:12,note:''},
+          {id:4,nom:'Spotify',cat:'Musique',icon:'🎵',montant:11.99,periode:'mois',jour:18,note:''},
+          {id:5,nom:'Ionos',cat:'Pro',icon:'💼',montant:15,periode:'mois',jour:1,note:'Hébergement / domaine'},
+        ],
+        assurances: [
+          {id:1,nom:'Assurance habitation',assureur:'',icon:'🏠',montant:0,periode:'mois',echeance:'',note:'À renseigner'},
+          {id:2,nom:'Mutuelle santé',assureur:'',icon:'❤️',montant:0,periode:'mois',echeance:'',note:'À renseigner'},
+          {id:3,nom:'Assurance auto Fiat 500e',assureur:'',icon:'🚗',montant:0,periode:'mois',echeance:'',note:'À renseigner'},
+        ]
+      };
     };
+    const data = loadContrats();
+    const totalAbo = data.abonnements.reduce((s,a)=>s+parseFloat(a.montant||0),0);
+    const totalAssu = data.assurances.reduce((s,a)=>s+parseFloat(a.montant||0),0);
+    const totalMois = totalAbo + totalAssu;
+
+    // Alertes : assurances sans montant
+    const manquants = data.assurances.filter(a=>!a.montant||a.montant==0).length;
+
+    // Echeance proche (< 60 jours)
+    const today = new Date();
+    const alertesEch = data.assurances.filter(a=>{
+      if(!a.echeance) return false;
+      const diff = (new Date(a.echeance) - today) / 86400000;
+      return diff >= 0 && diff <= 60;
+    });
+
+    const catIcon = cat => ({'Internet':'📡','Mobile':'📱','Streaming':'🎬','Musique':'🎵','Pro':'💼','Sport':'💪','Jeux':'🎮'}[cat]||'📋');
+
     return `
       <div class="section-hd"><div class="section-title">Contrats & Abonnements</div></div>
 
-      <!-- Insight IA -->
-      <div class="insight-banner">
-        <div class="insight-icon">✦</div>
-        <div class="insight-body">
-          <div class="insight-label">Analyse IA · Optimisation possible</div>
-          <div class="insight-text">Tu dépenses <strong>${c.totalMensuel} €/mois</strong> en contrats. LinkedIn Premium n'a pas été utilisé depuis 47 jours (−40€/mois possible). Ta mutuelle expire dans 8 jours : j'ai comparé 3 alternatives moins chères.</div>
-        </div>
-        <button class="insight-close" onclick="this.closest('.insight-banner').remove()">×</button>
-      </div>
-
       <!-- Stats -->
       <div class="grid-3">
-        ${statTile('Coût mensuel','${c.totalMensuel} €','Tous contrats confondus','neutral')}
-        ${statTile('Alertes actives','${c.alertes}','Renouvellements proches','warn')}
-        ${statTile('Économies possibles','~40 €','Abonnements sous-utilisés','ok')}
+        ${statTile('Total mensuel', totalMois.toFixed(0)+' €', 'Abonnements + assurances', 'neutral')}
+        ${statTile('Abonnements', totalAbo.toFixed(0)+' €', data.abonnements.length+' actifs', 'neutral')}
+        ${statTile('Assurances', totalAssu>0 ? totalAssu.toFixed(0)+' €' : '— €', manquants>0 ? manquants+' à renseigner' : 'À jour', manquants>0?'warn':'ok')}
+      </div>
+
+      ${alertesEch.length>0?`
+      <div class="insight-banner" style="border-left-color:var(--warn)">
+        <div class="insight-icon">⚠️</div>
+        <div class="insight-body">
+          <div class="insight-label" style="color:var(--warn)">Échéance proche</div>
+          <div class="insight-text">${alertesEch.map(a=>`<strong>${a.nom}</strong> — ${new Date(a.echeance).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}`).join(' · ')}</div>
+        </div>
+      </div>`:''}
+
+      <!-- ABONNEMENTS -->
+      <div class="section-hd" style="margin-top:4px">
+        <div class="section-title">Abonnements</div>
+        <button onclick="showAddContrat('abo')" style="font-size:12px;padding:4px 10px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer">+ Ajouter</button>
+      </div>
+      <div class="card">
+        <div class="card-body" style="padding-top:4px">
+          ${data.abonnements.map((a,i)=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+              <div style="width:36px;height:36px;border-radius:8px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${a.icon||catIcon(a.cat)}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13.5px;font-weight:500">${a.nom}</div>
+                <div style="font-size:11.5px;color:var(--text-2)">${a.cat}${a.jour?' · prélevé le '+a.jour:''}${a.note?' · '+a.note:''}</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0;margin-right:6px">
+                <div style="font-size:16px;font-weight:600">${parseFloat(a.montant).toFixed(2)} €</div>
+                <div style="font-size:10px;color:var(--text-3)">/${a.periode}</div>
+              </div>
+              <button onclick="deleteContrat('abo',${a.id})" style="padding:4px 7px;border-radius:6px;background:var(--bg2);border:1px solid var(--border);color:var(--text-3);font-size:11px;cursor:pointer">✕</button>
+            </div>`).join('')}
+          ${data.abonnements.length===0?'<div style="font-size:12px;color:var(--text-3);padding:8px 0">Aucun abonnement</div>':''}
+        </div>
       </div>
 
       <!-- ASSURANCES -->
       <div class="section-hd" style="margin-top:4px">
         <div class="section-title">Assurances</div>
-        <span class="section-link" onclick="openChat()">Comparer les offres ✦</span>
+        <button onclick="showAddContrat('assu')" style="font-size:12px;padding:4px 10px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer">+ Ajouter</button>
       </div>
       <div class="card">
-        <div class="card-body">
-          ${c.assurances.map(a=>`
-            <div style="padding:12px 0;border-bottom:1px solid var(--border)">
-              <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px">
-                <div style="flex:1">
-                  <div style="display:flex;align-items:center;gap:8px">
-                    <span style="font-size:13.5px;font-weight:600">${a.nom}</span>
-                    ${statusChip(a.statut)}
-                  </div>
-                  <div style="font-size:11.5px;color:var(--text-2);margin-top:2px">${a.detail}</div>
+        <div class="card-body" style="padding-top:4px">
+          ${data.assurances.map((a,i)=>`
+            <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:36px;height:36px;border-radius:8px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${a.icon||'📋'}</div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13.5px;font-weight:500">${a.nom}</div>
+                  <div style="font-size:11.5px;color:var(--text-2)">${a.assureur||'Assureur non renseigné'}${a.note?' · '+a.note:''}</div>
                 </div>
-                <div style="text-align:right;flex-shrink:0">
-                  ${a.montant?`<div style="font-family:var(--serif);font-size:18px;font-weight:600">${a.montant} €</div><div style="font-size:11px;color:var(--text-3)">/${a.periode}</div>`:'<div style="font-size:12px;color:var(--text-3)">—</div>'}
+                <div style="text-align:right;flex-shrink:0;margin-right:6px">
+                  ${a.montant>0?`<div style="font-size:16px;font-weight:600">${parseFloat(a.montant).toFixed(2)} €</div><div style="font-size:10px;color:var(--text-3)">/${a.periode}</div>`:'<span class="chip chip-warn" style="font-size:10px">À renseigner</span>'}
                 </div>
+                <button onclick="deleteContrat('assu',${a.id})" style="padding:4px 7px;border-radius:6px;background:var(--bg2);border:1px solid var(--border);color:var(--text-3);font-size:11px;cursor:pointer">✕</button>
               </div>
-              ${a.echeance&&a.echeance!=='—'?`
-              <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:${a.statut==='alerte'?'var(--warn-l)':'var(--bg2)'};border-radius:6px;margin-top:6px">
-                <span style="font-size:12px">📅</span>
-                <span style="font-size:11.5px;color:${a.statut==='alerte'?'var(--warn)':'var(--text-2)'}">${a.statut==='alerte'?'⚠ Échéance :':' Renouvellement :'} ${new Date(a.echeance).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}</span>
+              ${a.echeance?`<div style="display:flex;align-items:center;gap:5px;margin-top:6px;padding:5px 8px;background:${alertesEch.find(x=>x.id===a.id)?'var(--warn-l)':'var(--bg2)'};border-radius:6px">
+                <span style="font-size:11px">📅</span>
+                <span style="font-size:11.5px;color:${alertesEch.find(x=>x.id===a.id)?'var(--warn)':'var(--text-2)'}">Échéance : ${new Date(a.echeance+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}</span>
               </div>`:''}
             </div>`).join('')}
+          ${data.assurances.length===0?'<div style="font-size:12px;color:var(--text-3);padding:8px 0">Aucune assurance</div>':''}
         </div>
       </div>
 
-      <!-- ABONNEMENTS -->
-      <div class="section-hd" style="margin-top:4px">
-        <div class="section-title">Abonnements</div>
-        <span style="font-size:12px;color:var(--text-2)">${c.abonnements.reduce((s,a)=>s+a.montant,0).toFixed(2)} €/mois</span>
-      </div>
-      <div class="card">
-        <div class="card-body">
-          ${c.abonnements.map(a=>{
-            const isAlerte=a.statut==='alerte';
-            return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-              <div style="width:36px;height:36px;border-radius:8px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">
-                ${{Streaming:'🎬',Musique:'🎵',Apple:'🍎',Pro:'💼','E-commerce':'📦'}[a.cat]||'📱'}
+      <!-- Formulaire ajout (caché par défaut) -->
+      <div id="addContratForm" style="display:none">
+        <div class="card" style="border-left:3px solid var(--accent)">
+          <div class="card-header"><span class="card-title" id="addContratTitle">Ajouter</span></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+            <input type="hidden" id="ac-type" value="abo">
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <div style="flex:2;min-width:140px">
+                <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">Nom</div>
+                <input id="ac-nom" type="text" placeholder="Ex: Amazon Prime"
+                  style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text-1);font-size:13px">
               </div>
-              <div style="flex:1;min-width:0">
-                <div style="display:flex;align-items:center;gap:6px">
-                  <span style="font-size:13.5px;font-weight:500">${a.nom}</span>
-                  ${statusChip(a.statut)}
-                </div>
-                <div style="font-size:11.5px;color:var(--text-2)">${a.detail}</div>
+              <div style="flex:1;min-width:80px">
+                <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">Montant €</div>
+                <input id="ac-montant" type="number" placeholder="0.00" step="0.01" min="0"
+                  style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text-1);font-size:13px">
               </div>
-              <div style="text-align:right;flex-shrink:0">
-                <div style="font-family:var(--serif);font-size:16px;color:${isAlerte?'var(--warn)':'var(--text-1)'}">${a.montant.toFixed(2)} €</div>
-                <div style="font-size:10.5px;color:var(--text-3)">/${a.periode}</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <div style="flex:1;min-width:100px">
+                <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">Catégorie</div>
+                <input id="ac-cat" type="text" placeholder="Ex: Streaming, Santé…"
+                  style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text-1);font-size:13px">
               </div>
-            </div>`;
-          }).join('')}
+              <div style="flex:1;min-width:100px" id="ac-jour-wrap">
+                <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">Jour prélèvement</div>
+                <input id="ac-jour" type="number" placeholder="Ex: 5" min="1" max="31"
+                  style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text-1);font-size:13px">
+              </div>
+              <div style="flex:1;min-width:100px" id="ac-ech-wrap" style="display:none">
+                <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">Échéance</div>
+                <input id="ac-echeance" type="date"
+                  style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text-1);font-size:13px">
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">Assureur / note (optionnel)</div>
+              <input id="ac-note" type="text" placeholder=""
+                style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text-1);font-size:13px">
+            </div>
+            <div style="display:flex;gap:8px">
+              <button onclick="saveContrat()" style="flex:1;padding:10px;border-radius:8px;background:var(--accent);color:#fff;font-weight:600;font-size:13px;border:none;cursor:pointer">Enregistrer</button>
+              <button onclick="document.getElementById('addContratForm').style.display='none'" style="padding:10px 16px;border-radius:8px;background:var(--bg2);border:1px solid var(--border);color:var(--text-1);font-size:13px;cursor:pointer">Annuler</button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Recommandation IA -->
-      <div class="card" style="border-left:3px solid var(--accent)">
-        <div class="card-header"><span class="card-title">✦ Recommandations IA</span></div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
-          ${[
-            {icon:'💡',title:'Résilier LinkedIn Premium',sub:'Non utilisé depuis 47 jours → économie de 40€/mois = 480€/an',action:'Résilier',urgent:true},
-            {icon:'🔄',title:'Comparer la mutuelle avant le 31/03',sub:'J\'ai trouvé 3 offres équivalentes à partir de 67€/mois (vs 89€)',action:'Voir les offres',urgent:true},
-            {icon:'📦',title:'Amazon Prime : utilité à confirmer',sub:'Renouvellement annuel dans 3 mois — analyse de tes achats en cours',action:'Voir l\'analyse',urgent:false},
-          ].map(r=>`
-            <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg2);border-radius:8px;${r.urgent?'border-left:2px solid var(--warn)':''}">
-              <span style="font-size:20px;flex-shrink:0">${r.icon}</span>
-              <div style="flex:1">
-                <div style="font-size:13px;font-weight:600">${r.title}</div>
-                <div style="font-size:11.5px;color:var(--text-2)">${r.sub}</div>
-              </div>
-              <button class="connect-btn" style="padding:6px 12px;font-size:12px" onclick="openChat()">${r.action}</button>
-            </div>`).join('')}
-        </div>
-      </div>
-
-      <!-- Ajouter un contrat -->
-      <div class="connect-card">
-        <div class="connect-icon">➕</div>
-        <div class="connect-title">Ajouter un contrat</div>
-        <div class="connect-sub">Saisis manuellement ou importe depuis tes emails — l'IA détecte automatiquement les contrats dans ta boîte mail.</div>
-        <button class="connect-btn">Ajouter manuellement</button>
+      <div style="text-align:center;padding:12px 0;font-size:11px;color:var(--text-3)">
+        Données stockées sur cet appareil uniquement
       </div>`;
   },
 
@@ -1767,6 +1817,73 @@ function deleteHeure(idx) {
   stored.splice(idx, 1);
   try { localStorage.setItem('mum_heures', JSON.stringify(stored)); } catch(e) {}
   document.getElementById('content').innerHTML = VIEWS.heures?.() || '';
+}
+
+// ── Contrats helpers ──────────────────────────────────────────
+function loadContrats() {
+  try {
+    const saved = localStorage.getItem('mum_contrats');
+    if(saved) return JSON.parse(saved);
+  } catch(e) {}
+  return {
+    abonnements: [
+      {id:1,nom:'Free Box',cat:'Internet',icon:'📡',montant:40,periode:'mois',jour:1,note:'Freebox — internet + TV'},
+      {id:2,nom:'Free Mobile',cat:'Mobile',icon:'📱',montant:20,periode:'mois',jour:5,note:'Forfait mobile'},
+      {id:3,nom:'Netflix',cat:'Streaming',icon:'🎬',montant:17.99,periode:'mois',jour:12,note:''},
+      {id:4,nom:'Spotify',cat:'Musique',icon:'🎵',montant:11.99,periode:'mois',jour:18,note:''},
+      {id:5,nom:'Ionos',cat:'Pro',icon:'💼',montant:15,periode:'mois',jour:1,note:'Hébergement / domaine'},
+    ],
+    assurances: [
+      {id:1,nom:'Assurance habitation',assureur:'',icon:'🏠',montant:0,periode:'mois',echeance:'',note:'À renseigner'},
+      {id:2,nom:'Mutuelle santé',assureur:'',icon:'❤️',montant:0,periode:'mois',echeance:'',note:'À renseigner'},
+      {id:3,nom:'Assurance auto Fiat 500e',assureur:'',icon:'🚗',montant:0,periode:'mois',echeance:'',note:'À renseigner'},
+    ]
+  };
+}
+function saveContratsData(data) {
+  try { localStorage.setItem('mum_contrats', JSON.stringify(data)); } catch(e) {}
+}
+function showAddContrat(type) {
+  document.getElementById('addContratForm').style.display = 'block';
+  document.getElementById('ac-type').value = type;
+  document.getElementById('addContratTitle').textContent = type==='abo' ? 'Ajouter un abonnement' : 'Ajouter une assurance';
+  document.getElementById('ac-jour-wrap').style.display = type==='abo' ? '' : 'none';
+  document.getElementById('ac-ech-wrap').style.display = type==='assu' ? '' : 'none';
+  document.getElementById('ac-nom').value='';
+  document.getElementById('ac-montant').value='';
+  document.getElementById('ac-cat').value='';
+  document.getElementById('ac-jour').value='';
+  document.getElementById('ac-note').value='';
+  try { document.getElementById('ac-echeance').value=''; } catch(e) {}
+  document.getElementById('addContratForm').scrollIntoView({behavior:'smooth'});
+}
+function saveContrat() {
+  const type = document.getElementById('ac-type').value;
+  const nom = document.getElementById('ac-nom').value.trim();
+  const montant = parseFloat(document.getElementById('ac-montant').value) || 0;
+  const cat = document.getElementById('ac-cat').value.trim();
+  const note = document.getElementById('ac-note').value.trim();
+  if(!nom) { alert('Remplis le nom'); return; }
+  const data = loadContrats();
+  const catIcon = c => ({'Internet':'📡','Mobile':'📱','Streaming':'🎬','Musique':'🎵','Pro':'💼','Sport':'💪','Jeux':'🎮','Santé':'❤️','Habitation':'🏠','Auto':'🚗'}[c]||'📋');
+  if(type==='abo') {
+    const jour = parseInt(document.getElementById('ac-jour').value)||1;
+    const maxId = data.abonnements.reduce((m,a)=>Math.max(m,a.id),0);
+    data.abonnements.push({id:maxId+1,nom,cat,icon:catIcon(cat),montant,periode:'mois',jour,note});
+  } else {
+    const echeance = document.getElementById('ac-echeance').value||'';
+    const maxId = data.assurances.reduce((m,a)=>Math.max(m,a.id),0);
+    data.assurances.push({id:maxId+1,nom,assureur:cat,icon:catIcon(cat),montant,periode:'mois',echeance,note});
+  }
+  saveContratsData(data);
+  document.getElementById('content').innerHTML = VIEWS.contrats?.() || '';
+}
+function deleteContrat(type, id) {
+  const data = loadContrats();
+  if(type==='abo') data.abonnements = data.abonnements.filter(a=>a.id!==id);
+  else data.assurances = data.assurances.filter(a=>a.id!==id);
+  saveContratsData(data);
+  document.getElementById('content').innerHTML = VIEWS.contrats?.() || '';
 }
 
 function openChat(){
