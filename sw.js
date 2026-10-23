@@ -1,7 +1,7 @@
 // Service Worker — Mum PWA
 // Permet l'installation sur iPhone et le fonctionnement hors-ligne
 
-const CACHE = 'mum-v1';
+const CACHE = 'mum-v5';
 const ASSETS = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {

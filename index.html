@@ -94,16 +94,21 @@ button { font-family: var(--sans); cursor: pointer; border: none; background: no
 input, textarea { font-family: var(--sans); }
 
 /* ── SHELL ── */
+/* Mobile-first : 1 colonne par défaut, sidebar ajoutée sur desktop */
 .app {
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  grid-template-rows: 100%;
+  display: flex;
+  flex-direction: column;
   height: 100%;
 }
-@media (max-width: 900px) {
-  .app { grid-template-columns: 1fr !important; grid-template-rows: 1fr auto; }
-  .sidebar { display: none !important; width: 0 !important; min-width: 0 !important; overflow: hidden !important; }
-  .mobile-nav { display: flex !important; }
+.sidebar { display: none; }
+.mobile-nav { display: flex; }
+
+@media (min-width: 900px) {
+  .app { flex-direction: row; }
+  .sidebar { display: flex; flex-direction: column; width: 220px; flex-shrink: 0; }
+  .mobile-nav { display: none; }
+  /* Masquer drawer mobile sur desktop */
+  .more-drawer, .drawer-overlay { display: none !important; }
 }
 
 /* ── SIDEBAR ── */
@@ -185,7 +190,8 @@ input, textarea { font-family: var(--sans); }
 .main {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   background: var(--bg);
 }
