@@ -646,6 +646,7 @@ input, textarea { font-family: var(--sans); }
     <div class="nav-item" data-view="objectifs" onclick="navigate(this)"><span class="nav-icon">🎯</span> Objectifs</div>
     <div class="nav-item" data-view="contrats" onclick="navigate(this)"><span class="nav-icon">📋</span> Contrats <span class="nav-badge">3</span></div>
     <div class="nav-item" data-view="heures" onclick="navigate(this)"><span class="nav-icon">⏱</span> Heures</div>
+    <div class="nav-item" data-view="banque" onclick="navigate(this)"><span class="nav-icon">🏦</span> Banque</div>
     <div class="nav-item" data-view="securite" onclick="navigate(this)"><span class="nav-icon">🔒</span> Sécurité</div>
     <div class="sidebar-footer"><div class="security-badge"><span>🔒</span><span>Données chiffrées</span></div></div>
   </nav>
@@ -686,6 +687,7 @@ input, textarea { font-family: var(--sans); }
     <div class="more-drawer-item" data-view="emails" onclick="navigateDrawer(this)"><span style="font-size:1.3rem">✉️</span> Emails</div>
     <div class="more-drawer-item" data-view="objectifs" onclick="navigateDrawer(this)"><span style="font-size:1.3rem">🎯</span> Objectifs</div>
     <div class="more-drawer-item" data-view="heures" onclick="navigateDrawer(this)"><span style="font-size:1.3rem">⏱</span> Heures</div>
+    <div class="more-drawer-item" data-view="banque" onclick="navigateDrawer(this)"><span style="font-size:1.3rem">🏦</span> Banque</div>
     <div class="more-drawer-item" data-view="securite" onclick="navigateDrawer(this)"><span style="font-size:1.3rem">🔒</span> Sécurité</div>
   </div>
 </div>
@@ -1594,6 +1596,103 @@ const VIEWS = {
       </div>`;
   },
 
+  banque() {
+    return `
+      <div class="section-hd">
+        <div class="section-title">Banque</div>
+        <button class="section-link" onclick="banqueImportCSV()">📥 Importer CSV</button>
+      </div>
+
+      <!-- Comptes -->
+      <div id="bk-comptes-section"></div>
+
+      <!-- Stats rapides -->
+      <div id="bk-stats-section"></div>
+
+      <!-- Graphique catégories -->
+      <div id="bk-chart-section"></div>
+
+      <!-- Rapprochement prélèvements -->
+      <div id="bk-rapprochement-section"></div>
+
+      <!-- Transactions -->
+      <div class="section-hd" style="margin-top:8px">
+        <div class="section-title" style="font-size:15px">Transactions</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="bk-filter-compte" onchange="renderBanque()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-1)">
+            <option value="">Tous les comptes</option>
+          </select>
+          <select id="bk-filter-cat" onchange="renderBanque()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-1)">
+            <option value="">Toutes catégories</option>
+          </select>
+        </div>
+      </div>
+      <div id="bk-transactions-section"></div>
+
+      <!-- Ajouter transaction manuelle -->
+      <div class="card" style="margin-top:8px">
+        <div class="card-header"><span class="card-title">➕ Ajouter une transaction</span></div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+            <div>
+              <label style="font-size:11px;color:var(--text-2);display:block;margin-bottom:3px">Date</label>
+              <input id="bk-add-date" type="date" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-1);font-size:13px">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text-2);display:block;margin-bottom:3px">Montant (€)</label>
+              <input id="bk-add-montant" type="number" step="0.01" placeholder="-12.50" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-1);font-size:13px">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+            <div>
+              <label style="font-size:11px;color:var(--text-2);display:block;margin-bottom:3px">Libellé</label>
+              <input id="bk-add-libelle" type="text" placeholder="Ex: Carrefour Bouxwiller" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-1);font-size:13px">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text-2);display:block;margin-bottom:3px">Compte</label>
+              <input id="bk-add-compte" type="text" placeholder="Ex: LCL Courant" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-1);font-size:13px">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+            <div>
+              <label style="font-size:11px;color:var(--text-2);display:block;margin-bottom:3px">Catégorie</label>
+              <select id="bk-add-cat" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-1);font-size:13px">
+                <option>Alimentation</option><option>Transport</option><option>Logement</option>
+                <option>Santé</option><option>Assurance</option><option>Abonnements</option>
+                <option>Vêtements</option><option>Loisirs</option><option>Restaurants</option>
+                <option>Épargne</option><option>Revenus</option><option>Autre</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:flex-end">
+              <button onclick="banqueAddManuel()" style="width:100%;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Ajouter</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gestion des soldes -->
+      <div class="card" style="margin-top:8px">
+        <div class="card-header" style="cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <span class="card-title">🏦 Gérer les comptes</span>
+          <span style="font-size:11px;color:var(--text-3)">Cliquer pour déplier</span>
+        </div>
+        <div class="card-body" style="display:none" id="bk-comptes-editor"></div>
+      </div>
+
+      <!-- Import CSV info -->
+      <div class="card" style="margin-top:8px;background:var(--bg2)">
+        <div class="card-body" style="font-size:12px;color:var(--text-2);line-height:1.6">
+          <strong style="color:var(--text-1)">📥 Import CSV</strong> — Formats supportés : LCL, BNP Paribas, Crédit Agricole, Société Générale, CIC, La Banque Postale, Crédit Mutuel.<br>
+          Colonnes attendues : <code style="background:var(--bg);padding:1px 4px;border-radius:3px">Date ; Libellé ; Montant ; Compte</code><br>
+          Séparateur : point-virgule ou virgule · Encodage UTF-8 ou ISO-8859-1.
+        </div>
+      </div>
+
+      <!-- Zone drop CSV invisible -->
+      <input type="file" id="bk-csv-input" accept=".csv,.txt,.ofx,.qif" style="display:none" onchange="banqueParseCSV(this)">
+    `;
+  },
+
   securite() {
     return `
       <div class="section-hd"><div class="section-title">Sécurité & Confidentialité</div></div>
@@ -1724,6 +1823,403 @@ function typeColor(t){
   return{pro:'#5B8FD4',social:'#C45C2E',santé:'#3D6B52',health:'#3D6B52'}[t]||'#A09D98';
 }
 
+// ─── BANQUE ───
+const BK_KEY = 'mum_banque';
+const BK_COMPTES_KEY = 'mum_banque_comptes';
+
+function loadBanque() {
+  try { return JSON.parse(localStorage.getItem(BK_KEY)) || []; } catch { return []; }
+}
+function saveBanque(data) {
+  try { localStorage.setItem(BK_KEY, JSON.stringify(data)); } catch {}
+}
+function loadComptes() {
+  try {
+    return JSON.parse(localStorage.getItem(BK_COMPTES_KEY)) || [];
+  } catch { return []; }
+}
+function saveComptes(data) {
+  try { localStorage.setItem(BK_COMPTES_KEY, JSON.stringify(data)); } catch {}
+}
+
+const BK_CATS = {
+  'Alimentation': '#6B9E78', 'Transport': '#5B8FD4', 'Logement': '#8E7BB5',
+  'Santé': '#D4756B', 'Assurance': '#C8A45A', 'Abonnements': '#6BB8C8',
+  'Vêtements': '#B57B8E', 'Loisirs': '#7BAA8E', 'Restaurants': '#D4956B',
+  'Épargne': '#5B9B72', 'Revenus': '#3D6B52', 'Autre': '#A09D98'
+};
+
+function bkCatColor(cat) { return BK_CATS[cat] || '#A09D98'; }
+
+function renderBanque() {
+  const txs = loadBanque();
+  const comptes = loadComptes();
+  const filterCompte = document.getElementById('bk-filter-compte')?.value || '';
+  const filterCat = document.getElementById('bk-filter-cat')?.value || '';
+
+  // Remplir filtres
+  const allComptes = [...new Set(txs.map(t => t.compte).filter(Boolean))];
+  const allCats = [...new Set(txs.map(t => t.cat).filter(Boolean))];
+  const selC = document.getElementById('bk-filter-compte');
+  const selCat = document.getElementById('bk-filter-cat');
+  if (selC) {
+    const curC = selC.value;
+    selC.innerHTML = '<option value="">Tous les comptes</option>' + allComptes.map(c => `<option value="${c}" ${c===curC?'selected':''}>${c}</option>`).join('');
+  }
+  if (selCat) {
+    const curCat = selCat.value;
+    selCat.innerHTML = '<option value="">Toutes catégories</option>' + allCats.map(c => `<option value="${c}" ${c===curCat?'selected':''}>${c}</option>`).join('');
+  }
+
+  // Comptes section
+  const comptesEl = document.getElementById('bk-comptes-section');
+  if (comptesEl) {
+    if (comptes.length > 0) {
+      const totalSolde = comptes.reduce((s, c) => s + (c.solde || 0), 0);
+      comptesEl.innerHTML = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:0">
+          ${comptes.map(c => `
+            <div style="flex:1;min-width:140px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+              <div style="font-size:11px;color:var(--text-2);margin-bottom:2px">${c.nom}</div>
+              <div style="font-size:20px;font-family:var(--serif);color:${c.solde>=0?'var(--ok)':'var(--danger)'}">${(c.solde||0).toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}</div>
+              <div style="font-size:10px;color:var(--text-3);margin-top:2px">Mis à jour : ${c.maj||'—'}</div>
+            </div>`).join('')}
+          <div style="flex:1;min-width:140px;background:var(--accent-l);border:1px solid var(--accent);border-radius:10px;padding:12px 14px">
+            <div style="font-size:11px;color:var(--accent);margin-bottom:2px;font-weight:600">TOTAL</div>
+            <div style="font-size:20px;font-family:var(--serif);color:${totalSolde>=0?'var(--ok)':'var(--danger)'}">${totalSolde.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}</div>
+            <div style="font-size:10px;color:var(--text-3);margin-top:2px">${comptes.length} compte(s)</div>
+          </div>
+        </div>`;
+    } else {
+      comptesEl.innerHTML = `
+        <div class="insight-banner" style="border-left-color:var(--accent)">
+          <div class="insight-icon">🏦</div>
+          <div class="insight-body">
+            <div class="insight-label">Ajoute tes comptes</div>
+            <div class="insight-text">Saisis tes soldes manuellement ou importe un CSV pour commencer.</div>
+          </div>
+        </div>`;
+    }
+  }
+
+  // Filtrer transactions
+  let filtered = txs.filter(t =>
+    (!filterCompte || t.compte === filterCompte) &&
+    (!filterCat || t.cat === filterCat)
+  );
+  filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // Stats
+  const statsEl = document.getElementById('bk-stats-section');
+  if (statsEl && filtered.length > 0) {
+    const now = new Date();
+    const moisDebut = new Date(now.getFullYear(), now.getMonth(), 1);
+    const txMois = filtered.filter(t => new Date(t.date) >= moisDebut);
+    const depenses = txMois.filter(t => t.montant < 0).reduce((s, t) => s + Math.abs(t.montant), 0);
+    const revenus = txMois.filter(t => t.montant > 0).reduce((s, t) => s + t.montant, 0);
+    const soldeNet = revenus - depenses;
+    statsEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:0">
+        <div class="card stat-tile stat-ok"><div class="stat-label">Revenus (mois)</div><div class="stat-value">+${revenus.toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:0})} €</div><div class="stat-sub">${txMois.filter(t=>t.montant>0).length} opérations</div></div>
+        <div class="card stat-tile stat-warn"><div class="stat-label">Dépenses (mois)</div><div class="stat-value">−${depenses.toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:0})} €</div><div class="stat-sub">${txMois.filter(t=>t.montant<0).length} opérations</div></div>
+        <div class="card stat-tile ${soldeNet>=0?'stat-ok':'stat-warn'}"><div class="stat-label">Solde net</div><div class="stat-value">${soldeNet>=0?'+':''}${soldeNet.toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:0})} €</div><div class="stat-sub">ce mois-ci</div></div>
+      </div>`;
+  } else if (statsEl) {
+    statsEl.innerHTML = '';
+  }
+
+  // Graphique catégories
+  const chartEl = document.getElementById('bk-chart-section');
+  if (chartEl && filtered.length > 0) {
+    const now = new Date();
+    const moisDebut = new Date(now.getFullYear(), now.getMonth(), 1);
+    const txMois = filtered.filter(t => new Date(t.date) >= moisDebut && t.montant < 0);
+    const byCat = {};
+    txMois.forEach(t => { byCat[t.cat||'Autre'] = (byCat[t.cat||'Autre']||0) + Math.abs(t.montant); });
+    const sorted = Object.entries(byCat).sort((a,b) => b[1]-a[1]);
+    const total = sorted.reduce((s,[,v]) => s+v, 0);
+    if (sorted.length > 0) {
+      chartEl.innerHTML = `
+        <div class="card">
+          <div class="card-header"><span class="card-title">Répartition ce mois</span><span style="font-size:12px;color:var(--text-3)">${total.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}</span></div>
+          <div class="card-body">
+            <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin-bottom:12px">
+              ${sorted.map(([cat,v]) => `<div style="flex:${v};background:${bkCatColor(cat)}" title="${cat}: ${v.toFixed(2)}€"></div>`).join('')}
+            </div>
+            ${sorted.map(([cat,v]) => `
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <div style="width:10px;height:10px;border-radius:2px;background:${bkCatColor(cat)};flex-shrink:0"></div>
+                <div style="flex:1;font-size:13px;color:var(--text-1)">${cat}</div>
+                <div style="font-size:13px;font-family:var(--serif);color:var(--text-1)">${v.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}</div>
+                <div style="font-size:11px;color:var(--text-3);width:32px;text-align:right">${((v/total)*100).toFixed(0)}%</div>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    } else {
+      chartEl.innerHTML = '';
+    }
+  } else if (chartEl) { chartEl.innerHTML = ''; }
+
+  // Rapprochement prélèvements
+  const rapEl = document.getElementById('bk-rapprochement-section');
+  if (rapEl && filtered.length > 0) {
+    const contrats = (() => { try { return JSON.parse(localStorage.getItem('mum_contrats'))||{}; } catch { return {}; } })();
+    const assurances = contrats.assurances || [];
+    const abonnements = contrats.abonnements || [];
+    const tous = [...assurances.map(a=>({nom:a.nom,montant:a.montant,icon:a.icon})), ...abonnements.map(a=>({nom:a.nom,montant:a.montant,icon:a.icon}))];
+    const now = new Date();
+    const moisDebut = new Date(now.getFullYear(), now.getMonth(), 1);
+    const txMois = txs.filter(t => new Date(t.date) >= moisDebut && t.montant < 0);
+
+    const rapprochements = tous.map(contrat => {
+      // Cherche une tx dont le montant est proche (±2%) et le libellé contient un mot-clé
+      const mots = contrat.nom.toLowerCase().split(/[\s\-–—()/,]+/).filter(m => m.length > 3);
+      const match = txMois.find(t => {
+        const diff = Math.abs(Math.abs(t.montant) - contrat.montant);
+        const pct = diff / contrat.montant;
+        const libelleMatch = mots.some(m => t.libelle?.toLowerCase().includes(m));
+        return pct < 0.02 || libelleMatch;
+      });
+      return { contrat, match };
+    });
+
+    const trouves = rapprochements.filter(r => r.match);
+    const manquants = rapprochements.filter(r => !r.match);
+
+    if (manquants.length > 0) {
+      rapEl.innerHTML = `
+        <div class="card" style="border-left:3px solid var(--warn)">
+          <div class="card-header"><span class="card-title">⚠️ Prélèvements non trouvés ce mois</span></div>
+          <div class="card-body">
+            ${manquants.map(r => `
+              <div class="list-row">
+                <span style="font-size:18px">${r.contrat.icon}</span>
+                <div class="list-main"><div class="list-title" style="font-size:13px">${r.contrat.nom}</div></div>
+                <span style="font-size:13px;font-family:var(--serif);color:var(--warn)">${r.contrat.montant.toFixed(2)} €</span>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    } else if (trouves.length > 0) {
+      rapEl.innerHTML = `
+        <div class="card" style="border-left:3px solid var(--ok)">
+          <div class="card-header"><span class="card-title">✓ Tous les prélèvements trouvés</span></div>
+        </div>`;
+    } else {
+      rapEl.innerHTML = '';
+    }
+  } else if (rapEl) { rapEl.innerHTML = ''; }
+
+  // Transactions liste
+  const txEl = document.getElementById('bk-transactions-section');
+  if (txEl) {
+    if (filtered.length === 0) {
+      txEl.innerHTML = `<div class="card"><div class="card-body" style="text-align:center;color:var(--text-3);padding:24px">Aucune transaction — importe un CSV ou ajoute manuellement.</div></div>`;
+    } else {
+      const MAX = 50;
+      txEl.innerHTML = `
+        <div class="card">
+          <div class="card-body" style="padding:0">
+            ${filtered.slice(0, MAX).map((t, i) => `
+              <div class="list-row" style="border-bottom:${i<Math.min(filtered.length,MAX)-1?'1px solid var(--border)':'none'};padding:10px 14px">
+                <div style="width:32px;height:32px;border-radius:8px;background:${bkCatColor(t.cat||'Autre')}22;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${bkCatEmoji(t.cat||'Autre')}</div>
+                <div class="list-main" style="min-width:0">
+                  <div class="list-title" style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.libelle||'—'}</div>
+                  <div style="font-size:11px;color:var(--text-3)">${formatBkDate(t.date)} · ${t.compte||'—'} · <span style="color:${bkCatColor(t.cat||'Autre')}">${t.cat||'Autre'}</span></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                  <span style="font-size:14px;font-family:var(--serif);color:${t.montant>=0?'var(--ok)':'var(--text-1)'};font-weight:500">${t.montant>=0?'+':''}${t.montant.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}</span>
+                  <button onclick="banqueDeleteTx(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:16px;padding:0 2px" title="Supprimer">×</button>
+                </div>
+              </div>`).join('')}
+            ${filtered.length > MAX ? `<div style="padding:10px 14px;text-align:center;font-size:12px;color:var(--text-3)">${filtered.length - MAX} transactions supplémentaires (affiner les filtres)</div>` : ''}
+          </div>
+        </div>`;
+    }
+  }
+
+  // Éditeur comptes
+  const edEl = document.getElementById('bk-comptes-editor');
+  if (edEl) {
+    edEl.innerHTML = `
+      <div style="margin-bottom:10px">
+        ${comptes.map((c,i) => `
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+            <input value="${c.nom}" onchange="banqueUpdateCompte(${i},'nom',this.value)" style="flex:2;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-1);font-size:13px" placeholder="Nom du compte">
+            <input type="number" step="0.01" value="${c.solde||0}" onchange="banqueUpdateCompte(${i},'solde',parseFloat(this.value))" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-1);font-size:13px" placeholder="Solde">
+            <button onclick="banqueDeleteCompte(${i})" style="background:var(--danger-l);color:var(--danger);border:none;border-radius:6px;padding:7px 10px;cursor:pointer;font-size:13px">×</button>
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px">
+        <input id="bk-new-compte-nom" placeholder="Nom du compte" style="flex:2;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-1);font-size:13px">
+        <input id="bk-new-compte-solde" type="number" step="0.01" placeholder="Solde €" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-1);font-size:13px">
+        <button onclick="banqueAddCompte()" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">+</button>
+      </div>`;
+  }
+}
+
+function bkCatEmoji(cat) {
+  const m = {'Alimentation':'🛒','Transport':'🚗','Logement':'🏠','Santé':'💊','Assurance':'🛡️','Abonnements':'📱','Vêtements':'👕','Loisirs':'🎮','Restaurants':'🍽️','Épargne':'💰','Revenus':'💳','Autre':'💸'};
+  return m[cat]||'💸';
+}
+
+function formatBkDate(d) {
+  if (!d) return '—';
+  try {
+    return new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
+  } catch { return d; }
+}
+
+function banqueImportCSV() {
+  document.getElementById('bk-csv-input')?.click();
+}
+
+function banqueParseCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    let text = e.target.result;
+    // Détecter séparateur
+    const sep = text.includes(';') ? ';' : ',';
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    // Détecter header
+    const firstLine = lines[0].toLowerCase();
+    const hasHeader = firstLine.includes('date') || firstLine.includes('libel') || firstLine.includes('montant');
+    const dataLines = hasHeader ? lines.slice(1) : lines;
+
+    const txs = loadBanque();
+    let added = 0, nextId = txs.length ? Math.max(...txs.map(t=>t.id)) + 1 : 1;
+
+    dataLines.forEach(line => {
+      const parts = line.split(sep).map(p => p.trim().replace(/^["']|["']$/g,''));
+      if (parts.length < 2) return;
+
+      // Essayer de détecter les colonnes : Date, Libellé, Montant, [Compte]
+      let date, libelle, montant, compte;
+
+      // Format LCL/BNP : Date;Libellé;Débit;Crédit
+      // Format CA/SG  : Date;Libellé;Montant
+      // Format générique : col 0=date, col 1=libellé, col 2=montant ou débit, col 3=crédit ou compte
+
+      // Trouver la date
+      const dateIdx = parts.findIndex(p => /^\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4}$/.test(p) || /^\d{4}[\/\-\.]\d{2}[\/\-\.]\d{2}$/.test(p));
+      if (dateIdx === -1) return;
+      date = parts[dateIdx];
+      // Normaliser date en ISO
+      if (/^\d{2}[\/\-\.]/.test(date)) {
+        const [d,m,y] = date.split(/[\/\-\.]/);
+        date = `${y}-${m}-${d}`;
+      }
+
+      // Montant : chercher un nombre avec virgule ou point
+      const montantIdx = parts.findIndex((p,i) => i!==dateIdx && /^-?[\d\s]*[,.]?\d+$/.test(p.replace(/\s/g,'')) && p.trim() !== '');
+      if (montantIdx === -1) return;
+      montant = parseFloat(parts[montantIdx].replace(/\s/g,'').replace(',','.'));
+
+      // Vérifier crédit séparé (débit col X, crédit col X+1)
+      const nextIdx = montantIdx + 1;
+      if (nextIdx < parts.length && /^[\d\s]*[,.]?\d+$/.test(parts[nextIdx].replace(/\s/g,'')) && parts[nextIdx].trim() !== '') {
+        const credit = parseFloat(parts[nextIdx].replace(/\s/g,'').replace(',','.'));
+        if (!isNaN(credit) && credit > 0) {
+          montant = credit; // c'est un crédit (positif)
+        } else {
+          montant = -Math.abs(montant); // débit négatif
+        }
+      }
+
+      // Libellé : la colonne la plus longue qui n'est pas date ni montant
+      const libelleIdx = parts.reduce((best, p, i) => {
+        if (i === dateIdx || i === montantIdx || i === montantIdx+1) return best;
+        return p.length > (parts[best]||'').length ? i : best;
+      }, -1);
+      libelle = libelleIdx >= 0 ? parts[libelleIdx] : '—';
+
+      // Compte : dernière colonne si différente
+      compte = parts[parts.length-1] !== parts[libelleIdx] && parts.length > 3 ? parts[parts.length-1] : (file.name.replace('.csv','').replace('.txt',''));
+
+      // Catégorisation automatique
+      const cat = bkAutoCat(libelle);
+
+      if (!isNaN(montant) && date) {
+        txs.push({ id: nextId++, date, libelle, montant, compte, cat });
+        added++;
+      }
+    });
+
+    saveBanque(txs);
+    input.value = '';
+    renderBanque();
+    alert(`✅ ${added} transaction(s) importée(s)`);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function bkAutoCat(libelle) {
+  if (!libelle) return 'Autre';
+  const l = libelle.toLowerCase();
+  if (/carrefour|leclerc|lidl|aldi|intermarché|super[uo]|monop|biocoop|casino|franprix|picard|boulanger|marché/.test(l)) return 'Alimentation';
+  if (/mma|axa|maif|macif|allianz|groupama|matmut|covéa|covea|assur/.test(l)) return 'Assurance';
+  if (/free|sfr|orange|bouygue|netflix|spotify|amazon prime|canal|disney|apple|google|microsoft|ionos/.test(l)) return 'Abonnements';
+  if (/total|bp|esso|shell|essence|carburant|parking|autoroute|sncf|ratp|uber|taxi|péage/.test(l)) return 'Transport';
+  if (/pharmacie|docteur|médecin|clinique|hôpital|opticien|dentiste|kiné/.test(l)) return 'Santé';
+  if (/edf|engie|eau|gaz|loyer|syndic|artisan|plombier|électricien/.test(l)) return 'Logement';
+  if (/restaurant|brasserie|café|pizza|sushi|mcdonald|burger|kebab|bar /.test(l)) return 'Restaurants';
+  if (/zara|h&m|decathlon|jules|kiabi|celio|fnac|darty|boulanger/.test(l)) return 'Vêtements';
+  if (/cinéma|théâtre|musée|livre|fnac|jeux|sport|piscine|gym/.test(l)) return 'Loisirs';
+  if (/salaire|virement|remboursement|prestation|honoraire|revenu/.test(l)) return 'Revenus';
+  if (/livret|épargne|placement|assurance.vie/.test(l)) return 'Épargne';
+  return 'Autre';
+}
+
+function banqueAddManuel() {
+  const date = document.getElementById('bk-add-date')?.value;
+  const montant = parseFloat(document.getElementById('bk-add-montant')?.value);
+  const libelle = document.getElementById('bk-add-libelle')?.value?.trim();
+  const compte = document.getElementById('bk-add-compte')?.value?.trim() || 'Manuel';
+  const cat = document.getElementById('bk-add-cat')?.value || 'Autre';
+  if (!date || isNaN(montant)) { alert('Date et montant obligatoires'); return; }
+  const txs = loadBanque();
+  const nextId = txs.length ? Math.max(...txs.map(t=>t.id)) + 1 : 1;
+  txs.push({ id: nextId, date, libelle: libelle||'Transaction manuelle', montant, compte, cat });
+  saveBanque(txs);
+  document.getElementById('bk-add-date').value = '';
+  document.getElementById('bk-add-montant').value = '';
+  document.getElementById('bk-add-libelle').value = '';
+  renderBanque();
+}
+
+function banqueDeleteTx(id) {
+  const txs = loadBanque().filter(t => t.id !== id);
+  saveBanque(txs);
+  renderBanque();
+}
+
+function banqueAddCompte() {
+  const nom = document.getElementById('bk-new-compte-nom')?.value?.trim();
+  const solde = parseFloat(document.getElementById('bk-new-compte-solde')?.value||0);
+  if (!nom) return;
+  const comptes = loadComptes();
+  comptes.push({ nom, solde, maj: new Date().toLocaleDateString('fr-FR') });
+  saveComptes(comptes);
+  document.getElementById('bk-new-compte-nom').value = '';
+  document.getElementById('bk-new-compte-solde').value = '';
+  renderBanque();
+}
+
+function banqueUpdateCompte(i, field, val) {
+  const comptes = loadComptes();
+  if (comptes[i]) { comptes[i][field] = val; comptes[i].maj = new Date().toLocaleDateString('fr-FR'); }
+  saveComptes(comptes);
+  renderBanque();
+}
+
+function banqueDeleteCompte(i) {
+  const comptes = loadComptes();
+  comptes.splice(i, 1);
+  saveComptes(comptes);
+  renderBanque();
+}
+
 // ─── MORE DRAWER ───
 function openMoreDrawer(){
   document.getElementById('moreDrawer').classList.add('open');
@@ -1752,9 +2248,10 @@ function navigate(el){
     currentView=el.dataset.view;
   }
   const titles={dashboard:'Tableau de bord',agenda:'Agenda',sante:'Santé',
-    finances:'Finances',emails:'Emails',objectifs:'Objectifs',contrats:'Contrats & Abonnements',heures:'Heures travaillées',securite:'Sécurité'};
+    finances:'Finances',emails:'Emails',objectifs:'Objectifs',contrats:'Contrats & Abonnements',heures:'Heures travaillées',banque:'Banque',securite:'Sécurité'};
   document.getElementById('page-title').textContent=titles[currentView]||'';
   document.getElementById('content').innerHTML=VIEWS[currentView]?.()||'';
+  if(currentView==='banque') renderBanque();
 }
 navigate(null);
 
