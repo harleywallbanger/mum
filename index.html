@@ -115,7 +115,6 @@ input, textarea { font-family: var(--sans); }
 .sidebar {
   background: var(--bg2);
   border-right: 1px solid var(--border);
-  display: flex;
   flex-direction: column;
   padding: 24px 0;
   gap: 4px;
@@ -555,7 +554,7 @@ input, textarea { font-family: var(--sans); }
 
 /* ── MOBILE NAV ── */
 .mobile-nav {
-  display: none;
+  display: flex;
   background: var(--surface);
   border-top: 1px solid var(--border);
   padding: 8px 0 max(8px, env(safe-area-inset-bottom, 0px));
