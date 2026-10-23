@@ -1682,9 +1682,9 @@ const VIEWS = {
       <!-- Import CSV info -->
       <div class="card" style="margin-top:8px;background:var(--bg2)">
         <div class="card-body" style="font-size:12px;color:var(--text-2);line-height:1.6">
-          <strong style="color:var(--text-1)">📥 Import CSV</strong> — Formats supportés : LCL, BNP Paribas, Crédit Agricole, Société Générale, CIC, La Banque Postale, Crédit Mutuel.<br>
-          Colonnes attendues : <code style="background:var(--bg);padding:1px 4px;border-radius:3px">Date ; Libellé ; Montant ; Compte</code><br>
-          Séparateur : point-virgule ou virgule · Encodage UTF-8 ou ISO-8859-1.
+          <strong style="color:var(--text-1)">📥 Import CSV</strong> — Formats supportés : <strong>Caisse d'Épargne</strong>, LCL, BNP Paribas, Crédit Agricole, Société Générale, CIC, La Banque Postale, Crédit Mutuel.<br>
+          Dans ton espace CE en ligne : <em>Mes comptes → Télécharger le relevé → Format CSV</em><br>
+          Séparateur : point-virgule · Encodage ISO-8859-1 (géré automatiquement).
         </div>
       </div>
 
@@ -2078,80 +2078,104 @@ function banqueParseCSV(input) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    let text = e.target.result;
-    // Détecter séparateur
+    const text = e.target.result;
     const sep = text.includes(';') ? ';' : ',';
     const lines = text.split(/\r?\n/).filter(l => l.trim());
-    // Détecter header
-    const firstLine = lines[0].toLowerCase();
-    const hasHeader = firstLine.includes('date') || firstLine.includes('libel') || firstLine.includes('montant');
+    const firstLine = (lines[0]||'').toLowerCase();
+    const hasHeader = /date|libel|montant|débit|crédit|opér/i.test(firstLine);
     const dataLines = hasHeader ? lines.slice(1) : lines;
-
     const txs = loadBanque();
-    let added = 0, nextId = txs.length ? Math.max(...txs.map(t=>t.id)) + 1 : 1;
-
-    dataLines.forEach(line => {
-      const parts = line.split(sep).map(p => p.trim().replace(/^["']|["']$/g,''));
-      if (parts.length < 2) return;
-
-      // Essayer de détecter les colonnes : Date, Libellé, Montant, [Compte]
-      let date, libelle, montant, compte;
-
-      // Format LCL/BNP : Date;Libellé;Débit;Crédit
-      // Format CA/SG  : Date;Libellé;Montant
-      // Format générique : col 0=date, col 1=libellé, col 2=montant ou débit, col 3=crédit ou compte
-
-      // Trouver la date
-      const dateIdx = parts.findIndex(p => /^\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4}$/.test(p) || /^\d{4}[\/\-\.]\d{2}[\/\-\.]\d{2}$/.test(p));
-      if (dateIdx === -1) return;
-      date = parts[dateIdx];
-      // Normaliser date en ISO
-      if (/^\d{2}[\/\-\.]/.test(date)) {
-        const [d,m,y] = date.split(/[\/\-\.]/);
-        date = `${y}-${m}-${d}`;
-      }
-
-      // Montant : chercher un nombre avec virgule ou point
-      const montantIdx = parts.findIndex((p,i) => i!==dateIdx && /^-?[\d\s]*[,.]?\d+$/.test(p.replace(/\s/g,'')) && p.trim() !== '');
-      if (montantIdx === -1) return;
-      montant = parseFloat(parts[montantIdx].replace(/\s/g,'').replace(',','.'));
-
-      // Vérifier crédit séparé (débit col X, crédit col X+1)
-      const nextIdx = montantIdx + 1;
-      if (nextIdx < parts.length && /^[\d\s]*[,.]?\d+$/.test(parts[nextIdx].replace(/\s/g,'')) && parts[nextIdx].trim() !== '') {
-        const credit = parseFloat(parts[nextIdx].replace(/\s/g,'').replace(',','.'));
-        if (!isNaN(credit) && credit > 0) {
-          montant = credit; // c'est un crédit (positif)
-        } else {
-          montant = -Math.abs(montant); // débit négatif
-        }
-      }
-
-      // Libellé : la colonne la plus longue qui n'est pas date ni montant
-      const libelleIdx = parts.reduce((best, p, i) => {
-        if (i === dateIdx || i === montantIdx || i === montantIdx+1) return best;
-        return p.length > (parts[best]||'').length ? i : best;
-      }, -1);
-      libelle = libelleIdx >= 0 ? parts[libelleIdx] : '—';
-
-      // Compte : dernière colonne si différente
-      compte = parts[parts.length-1] !== parts[libelleIdx] && parts.length > 3 ? parts[parts.length-1] : (file.name.replace('.csv','').replace('.txt',''));
-
-      // Catégorisation automatique
-      const cat = bkAutoCat(libelle);
-
-      if (!isNaN(montant) && date) {
-        txs.push({ id: nextId++, date, libelle, montant, compte, cat });
-        added++;
-      }
-    });
-
+    const added = bkParseLines(dataLines, sep, file, txs);
     saveBanque(txs);
     input.value = '';
     renderBanque();
     alert(`✅ ${added} transaction(s) importée(s)`);
   };
-  reader.readAsText(file, 'UTF-8');
+  reader.readAsText(file, 'ISO-8859-1');
+}
+
+function bkParseLines(lines, sep, file, txs) {
+  let added = 0;
+  let nextId = txs.length ? Math.max(...txs.map(t=>t.id)) + 1 : 1;
+
+  // Détecter format Caisse d'Épargne : "Date;Libellé;Montant;Solde"
+  // Ligne header typique CE : Date de l'opération;Valeur;Libellé;Débit;Crédit
+  const firstLine = (lines[0]||'').toLowerCase();
+  const isCE = firstLine.includes('caisse') || firstLine.includes('op') && firstLine.includes('lib') ||
+    file.name.toLowerCase().includes('caisse') || file.name.toLowerCase().includes('releve');
+
+  // Index colonnes CE connu : 0=Date, 1=Valeur, 2=Libellé, 3=Débit, 4=Crédit
+  const ceHeaderMatch = /date.*op|date.*val/i.test(firstLine) && /lib/i.test(firstLine);
+
+  lines.forEach(line => {
+    const parts = line.split(sep).map(p => p.trim().replace(/^["']|["']$/g,''));
+    if (parts.length < 2) return;
+
+    let date, libelle, montant, compte;
+
+    if (ceHeaderMatch || (isCE && parts.length >= 4)) {
+      // Format CE : Date;Valeur;Libellé;Débit;Crédit  OU  Date;Libellé;Montant;Solde
+      // Détecter date en col 0
+      const rawDate = parts[0];
+      if (!/^\d{2}[\/\.\-]\d{2}[\/\.\-]\d{4}$/.test(rawDate)) return;
+      const [d,m,y] = rawDate.split(/[\/\.\-]/);
+      date = `${y}-${m}-${d}`;
+
+      if (parts.length >= 5) {
+        // Format 5 colonnes : Date;Valeur;Libellé;Débit;Crédit
+        libelle = bkCleanLibelle(parts[2]);
+        const debit = parseFloat((parts[3]||'').replace(/\s/g,'').replace(',','.').replace(/[^\d.\-]/g,''));
+        const credit = parseFloat((parts[4]||'').replace(/\s/g,'').replace(',','.').replace(/[^\d.]/g,''));
+        if (!isNaN(credit) && credit > 0) montant = credit;
+        else if (!isNaN(debit) && debit > 0) montant = -debit;
+        else if (!isNaN(debit)) montant = debit;
+        else return;
+      } else {
+        // Format 4 colonnes : Date;Libellé;Montant;Solde
+        libelle = bkCleanLibelle(parts[1]);
+        montant = parseFloat((parts[2]||'').replace(/\s/g,'').replace(',','.').replace(/[^\d.\-]/g,''));
+        if (isNaN(montant)) return;
+      }
+      compte = 'Caisse d\'Épargne';
+    } else {
+      // Détection générique (autres banques)
+      const dateIdx = parts.findIndex(p => /^\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4}$/.test(p) || /^\d{4}[\/\-\.]\d{2}[\/\-\.]\d{2}$/.test(p));
+      if (dateIdx === -1) return;
+      date = parts[dateIdx];
+      if (/^\d{2}[\/\-\.]/.test(date)) {
+        const [d,m,y] = date.split(/[\/\-\.]/);
+        date = `${y}-${m}-${d}`;
+      }
+      const montantIdx = parts.findIndex((p,i) => i!==dateIdx && /^-?[\d\s]*[,.]?\d+$/.test(p.replace(/\s/g,'')) && p.trim()!=='');
+      if (montantIdx === -1) return;
+      montant = parseFloat(parts[montantIdx].replace(/\s/g,'').replace(',','.'));
+      const nextIdx = montantIdx + 1;
+      if (nextIdx < parts.length && /^[\d\s]*[,.]?\d+$/.test(parts[nextIdx].replace(/\s/g,'')) && parts[nextIdx].trim()!=='') {
+        const credit = parseFloat(parts[nextIdx].replace(/\s/g,'').replace(',','.'));
+        if (!isNaN(credit) && credit > 0) montant = credit;
+        else montant = -Math.abs(montant);
+      }
+      const libelleIdx = parts.reduce((best,p,i) => {
+        if (i===dateIdx||i===montantIdx||i===montantIdx+1) return best;
+        return p.length>(parts[best]||'').length?i:best;
+      }, -1);
+      libelle = bkCleanLibelle(libelleIdx>=0?parts[libelleIdx]:'—');
+      compte = parts[parts.length-1]!==parts[libelleIdx]&&parts.length>3?parts[parts.length-1]:file.name.replace(/\.[^.]+$/,'');
+    }
+
+    const cat = bkAutoCat(libelle);
+    if (!isNaN(montant) && date && libelle) {
+      txs.push({ id: nextId++, date, libelle, montant, compte: compte||file.name.replace(/\.[^.]+$/,''), cat });
+      added++;
+    }
+  });
+  return added;
+}
+
+function bkCleanLibelle(s) {
+  if (!s) return '—';
+  // Supprimer codes internes CE : PREL SEPA, VIR INST, CB *, REM CHQ, etc.
+  return s.replace(/^(PREL SEPA|VIR SEPA|VIR INST|VIR RECU|CB |REM CHQ|RETRAIT|FRAIS|AVOIR)\s*/i, '').trim() || s;
 }
 
 function bkAutoCat(libelle) {
@@ -2166,7 +2190,7 @@ function bkAutoCat(libelle) {
   if (/restaurant|brasserie|café|pizza|sushi|mcdonald|burger|kebab|bar /.test(l)) return 'Restaurants';
   if (/zara|h&m|decathlon|jules|kiabi|celio|fnac|darty|boulanger/.test(l)) return 'Vêtements';
   if (/cinéma|théâtre|musée|livre|fnac|jeux|sport|piscine|gym/.test(l)) return 'Loisirs';
-  if (/salaire|virement|remboursement|prestation|honoraire|revenu/.test(l)) return 'Revenus';
+  if (/vir recu|virement recu|salaire|remboursement|prestation|honoraire|revenu|vir inst recu/.test(l)) return 'Revenus';
   if (/livret|épargne|placement|assurance.vie/.test(l)) return 'Épargne';
   return 'Autre';
 }
