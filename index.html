@@ -1081,14 +1081,63 @@ const VIEWS = {
   emails() {
     return `
       <div class="section-hd"><div class="section-title">Emails</div></div>
+
+      <!-- Accès rapide boîtes mail -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+        <a href="https://www.icloud.com/mail" target="_blank" style="text-decoration:none">
+          <div class="card" style="padding:20px;text-align:center;cursor:pointer;transition:transform .15s" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform=''">
+            <div style="font-size:2rem;margin-bottom:8px">🍎</div>
+            <div style="font-weight:600;font-size:.95rem;color:var(--text-1)">iCloud Mail</div>
+            <div style="font-size:.78rem;color:var(--text-3);margin-top:3px">jerome75veit@icloud.com</div>
+            <div style="margin-top:10px;display:inline-flex;align-items:center;gap:5px;font-size:.78rem;color:var(--accent);font-weight:500">
+              Ouvrir <span style="font-size:.9rem">→</span>
+            </div>
+          </div>
+        </a>
+        <a href="https://mail.google.com" target="_blank" style="text-decoration:none">
+          <div class="card" style="padding:20px;text-align:center;cursor:pointer;transition:transform .15s" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform=''">
+            <div style="font-size:2rem;margin-bottom:8px">📧</div>
+            <div style="font-weight:600;font-size:.95rem;color:var(--text-1)">Gmail</div>
+            <div style="font-size:.78rem;color:var(--text-3);margin-top:3px">Compte Google</div>
+            <div style="margin-top:10px;display:inline-flex;align-items:center;gap:5px;font-size:.78rem;color:var(--accent);font-weight:500">
+              Ouvrir <span style="font-size:.9rem">→</span>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <!-- Actions rapides -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><span class="card-title">Actions rapides</span></div>
+        <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:12px">
+          <a href="https://www.icloud.com/mail#compose" target="_blank" style="text-decoration:none">
+            <div style="background:var(--accent-l);border-radius:var(--r);padding:14px;text-align:center;cursor:pointer">
+              <div style="font-size:1.4rem">✏️</div>
+              <div style="font-size:.82rem;font-weight:500;color:var(--accent);margin-top:4px">Nouveau mail</div>
+            </div>
+          </a>
+          <a href="https://www.icloud.com/mail#search" target="_blank" style="text-decoration:none">
+            <div style="background:var(--bg2);border-radius:var(--r);padding:14px;text-align:center;cursor:pointer">
+              <div style="font-size:1.4rem">🔍</div>
+              <div style="font-size:.82rem;font-weight:500;color:var(--text-2);margin-top:4px">Rechercher</div>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- Aperçu statique (emails fictifs jusqu'à connexion IMAP) -->
       <div class="card">
-        <div class="card-header"><span class="card-title">Boîte de réception</span></div>
+        <div class="card-header">
+          <span class="card-title">Aperçu récents</span>
+          <span class="chip" style="background:var(--warn-l);color:var(--warn);font-size:.7rem">Non connecté</span>
+        </div>
         <div class="card-body">
           ${DATA.emails.map(e=>`
-            <div class="list-row" style="${!e.read?'background:var(--accent-l);margin:0 -16px;padding:10px 16px;':''}">
-              <div class="list-main">
+            <div class="list-row" style="${!e.read?'background:var(--accent-l);margin:0 -16px;padding:10px 16px;border-radius:var(--r);':''}">
+              <div style="width:8px;height:8px;border-radius:50%;background:${!e.read?'var(--accent)':'transparent'};flex-shrink:0;margin-top:4px"></div>
+              <div class="list-main" style="margin-left:8px">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
-                  ${e.urgent?'<span class="chip chip-warn">Urgent</span>':''}
+                  ${e.urgent?'<span class="chip chip-warn" style="font-size:.68rem;padding:1px 6px">Urgent</span>':''}
                   <div class="list-title" style="font-weight:${!e.read?'600':'400'}">${e.from}</div>
                 </div>
                 <div class="list-sub">${e.subject}</div>
@@ -1097,11 +1146,10 @@ const VIEWS = {
             </div>`).join('')}
         </div>
       </div>
-      <div class="connect-card">
-        <div class="connect-icon">✉️</div>
-        <div class="connect-title">Connecter ta messagerie</div>
-        <div class="connect-sub">L'IA lit les en-têtes pour trier les urgences. Le corps des emails est analysé localement, jamais envoyé à un serveur tiers.</div>
-        <button class="connect-btn">Connexion OAuth sécurisée</button>
+
+      <div style="margin-top:16px;padding:14px 16px;background:var(--bg2);border-radius:var(--r);font-size:.8rem;color:var(--text-3);display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:1rem;flex-shrink:0">💡</span>
+        <span>Les mails ci-dessus sont des exemples. Pour des vrais emails dans Mum, une intégration OAuth Gmail ou un relais IMAP serait nécessaire — une prochaine étape si tu veux aller plus loin.</span>
       </div>`;
   },
 
