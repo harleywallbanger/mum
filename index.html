@@ -109,7 +109,7 @@ input, textarea { font-family: var(--sans); }
   .mobile-nav { display: none; }
   /* Masquer drawer mobile sur desktop */
   .more-drawer, .drawer-overlay { display: none !important; }
-  .fab { bottom: 24px; }
+  .fab { display: flex; bottom: 24px; }
 }
 
 /* ── SIDEBAR ── */
@@ -511,6 +511,7 @@ input, textarea { font-family: var(--sans); }
 
 /* ── FAB ── */
 .fab {
+  display: none;
   position: fixed;
   bottom: 90px;
   right: 24px;
@@ -670,6 +671,7 @@ input, textarea { font-family: var(--sans); }
     <div class="mob-item" data-view="agenda" onclick="navigate(this)"><div class="mob-icon">📅</div><span>Agenda</span></div>
     <div class="mob-item" data-view="finances" onclick="navigate(this)"><div class="mob-icon">💶</div><span>Finances</span></div>
     <div class="mob-item" data-view="contrats" onclick="navigate(this)"><div class="mob-icon">📋</div><span>Contrats</span></div>
+    <div class="mob-item" onclick="openChat()"><div class="mob-icon">✦</div><span>IA</span></div>
     <div class="mob-item" onclick="openMoreDrawer()"><div class="mob-icon">•••</div><span>Plus</span></div>
   </div>
 
