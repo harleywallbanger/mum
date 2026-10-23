@@ -101,8 +101,8 @@ input, textarea { font-family: var(--sans); }
   height: 100%;
 }
 @media (max-width: 900px) {
-  .app { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
-  .sidebar { display: none !important; }
+  .app { grid-template-columns: 1fr !important; grid-template-rows: 1fr auto; }
+  .sidebar { display: none !important; width: 0 !important; min-width: 0 !important; overflow: hidden !important; }
   .mobile-nav { display: flex !important; }
 }
 
@@ -625,44 +625,21 @@ input, textarea { font-family: var(--sans); }
 <!-- ═══════════════════════════════════ APP ═══════════════════════════════════ -->
 <div class="app" id="app" style="opacity:0;transition:opacity .4s">
 
-  <!-- SIDEBAR -->
-  <nav class="sidebar">
+  <!-- SIDEBAR (desktop uniquement, masquée sur mobile via CSS) -->
+  <nav class="sidebar" aria-hidden="true">
     <div class="brand">
       <div class="brand-name">Mum</div>
       <div class="brand-sub">Manager personnel</div>
     </div>
-
-    <div class="nav-item active" data-view="dashboard" onclick="navigate(this)">
-      <span class="nav-icon">◈</span> Tableau de bord
-    </div>
-    <div class="nav-item" data-view="agenda" onclick="navigate(this)">
-      <span class="nav-icon">📅</span> Agenda
-    </div>
-    <div class="nav-item" data-view="sante" onclick="navigate(this)">
-      <span class="nav-icon">❤️</span> Santé
-    </div>
-    <div class="nav-item" data-view="finances" onclick="navigate(this)">
-      <span class="nav-icon">💶</span> Finances <span class="nav-badge">!</span>
-    </div>
-    <div class="nav-item" data-view="emails" onclick="navigate(this)">
-      <span class="nav-icon">✉️</span> Emails <span class="nav-badge">2</span>
-    </div>
-    <div class="nav-item" data-view="objectifs" onclick="navigate(this)">
-      <span class="nav-icon">🎯</span> Objectifs
-    </div>
-    <div class="nav-item" data-view="contrats" onclick="navigate(this)">
-      <span class="nav-icon">📋</span> Contrats <span class="nav-badge">3</span>
-    </div>
-    <div class="nav-item" data-view="securite" onclick="navigate(this)">
-      <span class="nav-icon">🔒</span> Sécurité
-    </div>
-
-    <div class="sidebar-footer">
-      <div class="security-badge">
-        <span>🔒</span>
-        <span>Données chiffrées</span>
-      </div>
-    </div>
+    <div class="nav-item active" data-view="dashboard" onclick="navigate(this)"><span class="nav-icon">◈</span> Tableau de bord</div>
+    <div class="nav-item" data-view="agenda" onclick="navigate(this)"><span class="nav-icon">📅</span> Agenda</div>
+    <div class="nav-item" data-view="sante" onclick="navigate(this)"><span class="nav-icon">❤️</span> Santé</div>
+    <div class="nav-item" data-view="finances" onclick="navigate(this)"><span class="nav-icon">💶</span> Finances <span class="nav-badge">!</span></div>
+    <div class="nav-item" data-view="emails" onclick="navigate(this)"><span class="nav-icon">✉️</span> Emails <span class="nav-badge">2</span></div>
+    <div class="nav-item" data-view="objectifs" onclick="navigate(this)"><span class="nav-icon">🎯</span> Objectifs</div>
+    <div class="nav-item" data-view="contrats" onclick="navigate(this)"><span class="nav-icon">📋</span> Contrats <span class="nav-badge">3</span></div>
+    <div class="nav-item" data-view="securite" onclick="navigate(this)"><span class="nav-icon">🔒</span> Sécurité</div>
+    <div class="sidebar-footer"><div class="security-badge"><span>🔒</span><span>Données chiffrées</span></div></div>
   </nav>
 
   <!-- MAIN -->
