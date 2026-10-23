@@ -645,6 +645,7 @@ input, textarea { font-family: var(--sans); }
     <div class="nav-item" data-view="emails" onclick="navigate(this)"><span class="nav-icon">✉️</span> Emails <span class="nav-badge">2</span></div>
     <div class="nav-item" data-view="objectifs" onclick="navigate(this)"><span class="nav-icon">🎯</span> Objectifs</div>
     <div class="nav-item" data-view="contrats" onclick="navigate(this)"><span class="nav-icon">📋</span> Contrats <span class="nav-badge">3</span></div>
+    <div class="nav-item" data-view="heures" onclick="navigate(this)"><span class="nav-icon">⏱</span> Heures</div>
     <div class="nav-item" data-view="securite" onclick="navigate(this)"><span class="nav-icon">🔒</span> Sécurité</div>
     <div class="sidebar-footer"><div class="security-badge"><span>🔒</span><span>Données chiffrées</span></div></div>
   </nav>
@@ -684,6 +685,7 @@ input, textarea { font-family: var(--sans); }
     <div class="more-drawer-item" data-view="sante" onclick="navigateDrawer(this)"><span style="font-size:1.3rem">❤️</span> Santé</div>
     <div class="more-drawer-item" data-view="emails" onclick="navigateDrawer(this)"><span style="font-size:1.3rem">✉️</span> Emails</div>
     <div class="more-drawer-item" data-view="objectifs" onclick="navigateDrawer(this)"><span style="font-size:1.3rem">🎯</span> Objectifs</div>
+    <div class="more-drawer-item" data-view="heures" onclick="navigateDrawer(this)"><span style="font-size:1.3rem">⏱</span> Heures</div>
     <div class="more-drawer-item" data-view="securite" onclick="navigateDrawer(this)"><span style="font-size:1.3rem">🔒</span> Sécurité</div>
   </div>
 </div>
@@ -1405,6 +1407,134 @@ const VIEWS = {
       </div>`;
   },
 
+  heures() {
+    // Load saved entries from localStorage
+    const stored = (() => { try { return JSON.parse(localStorage.getItem('mum_heures') || '[]'); } catch(e) { return []; } })();
+    const tauxDefault = 12.50; // SMIC horaire brut approx 2026
+
+    // Group by month
+    const now = new Date();
+    const thisMonth = now.toISOString().slice(0,7);
+    const monthEntries = stored.filter(e => e.date.startsWith(thisMonth));
+    const totalH = monthEntries.reduce((s,e) => s + parseFloat(e.heures||0), 0);
+    const brutEstime = monthEntries.reduce((s,e) => s + parseFloat(e.heures||0) * parseFloat(e.taux||tauxDefault), 0);
+    const netEstime = brutEstime * 0.77; // ~23% charges salariales
+
+    // Previous months summary
+    const months = [...new Set(stored.map(e=>e.date.slice(0,7)))].sort().reverse().slice(0,6);
+
+    function fmtMois(ym) {
+      const [y,m] = ym.split('-');
+      return new Date(y,m-1,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+    }
+
+    return `
+      <div class="section-hd"><div class="section-title">Heures travaillées</div></div>
+
+      <!-- Ce mois -->
+      <div class="card" style="border-left:3px solid var(--accent)">
+        <div class="card-header"><span class="card-title">${fmtMois(thisMonth)}</span><span style="font-size:11px;color:var(--text-3)">En cours</span></div>
+        <div class="card-body">
+          <div class="grid-3">
+            <div style="text-align:center">
+              <div style="font-size:26px;font-weight:700;color:var(--accent)">${totalH.toFixed(1)}</div>
+              <div style="font-size:11px;color:var(--text-2)">heures</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:26px;font-weight:700;color:var(--text-1)">${Math.round(brutEstime)} €</div>
+              <div style="font-size:11px;color:var(--text-2)">brut estimé</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:26px;font-weight:700;color:var(--ok)">${Math.round(netEstime)} €</div>
+              <div style="font-size:11px;color:var(--text-2)">net estimé</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Saisie rapide -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">Ajouter une journée</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <div style="flex:1;min-width:120px">
+              <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">Date</div>
+              <input id="h-date" type="date" value="${now.toISOString().slice(0,10)}"
+                style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text-1);font-size:13px">
+            </div>
+            <div style="flex:1;min-width:80px">
+              <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">Heures</div>
+              <input id="h-heures" type="number" placeholder="7.5" step="0.5" min="0.5" max="24"
+                style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text-1);font-size:13px">
+            </div>
+            <div style="flex:1;min-width:80px">
+              <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">Taux €/h brut</div>
+              <input id="h-taux" type="number" placeholder="${tauxDefault}" step="0.01" min="1"
+                style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text-1);font-size:13px">
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">Lieu / mission (optionnel)</div>
+            <input id="h-lieu" type="text" placeholder="Ex: L'Alsacienne, Schiltigheim"
+              style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text-1);font-size:13px">
+          </div>
+          <button onclick="addHeure()" style="padding:10px;border-radius:8px;background:var(--accent);color:#fff;font-weight:600;font-size:13px;border:none;cursor:pointer">
+            + Ajouter
+          </button>
+        </div>
+      </div>
+
+      <!-- Liste du mois -->
+      ${monthEntries.length > 0 ? `
+      <div class="card">
+        <div class="card-header"><span class="card-title">Détail ${fmtMois(thisMonth)}</span></div>
+        <div class="card-body" style="padding-top:4px">
+          ${[...monthEntries].reverse().map((e,i) => {
+            const brut = (parseFloat(e.heures||0) * parseFloat(e.taux||tauxDefault)).toFixed(2);
+            const idx = stored.indexOf(e);
+            return `<div class="list-row" style="align-items:center">
+              <div class="list-main">
+                <div class="list-title">${new Date(e.date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})}</div>
+                <div class="list-sub">${e.heures}h × ${e.taux||tauxDefault} €/h${e.lieu?' · '+e.lieu:''}</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0;margin-right:8px">
+                <div style="font-weight:600;font-size:13px">${brut} €</div>
+                <div style="font-size:10px;color:var(--text-3)">brut</div>
+              </div>
+              <button onclick="deleteHeure(${idx})" style="padding:4px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--border);color:var(--text-2);font-size:11px;cursor:pointer">✕</button>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- Historique mois précédents -->
+      ${months.filter(m=>m!==thisMonth).length > 0 ? `
+      <div class="card">
+        <div class="card-header"><span class="card-title">Historique</span></div>
+        <div class="card-body" style="padding-top:4px">
+          ${months.filter(m=>m!==thisMonth).map(m => {
+            const entries = stored.filter(e=>e.date.startsWith(m));
+            const h = entries.reduce((s,e)=>s+parseFloat(e.heures||0),0);
+            const brut = entries.reduce((s,e)=>s+parseFloat(e.heures||0)*parseFloat(e.taux||tauxDefault),0);
+            return `<div class="list-row">
+              <div class="list-main">
+                <div class="list-title">${fmtMois(m)}</div>
+                <div class="list-sub">${entries.length} jour${entries.length>1?'s':''} · ${h.toFixed(1)}h</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0">
+                <div style="font-weight:600;font-size:13px">${Math.round(brut)} €</div>
+                <div style="font-size:10px;color:var(--text-3)">brut · ~${Math.round(brut*0.77)} € net</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>` : ''}
+
+      <div style="text-align:center;padding:12px 0;font-size:11px;color:var(--text-3)">
+        Net estimé = brut − 23% charges salariales · Données stockées sur cet appareil
+      </div>`;
+  },
+
   securite() {
     return `
       <div class="section-hd"><div class="section-title">Sécurité & Confidentialité</div></div>
@@ -1563,7 +1693,7 @@ function navigate(el){
     currentView=el.dataset.view;
   }
   const titles={dashboard:'Tableau de bord',agenda:'Agenda',sante:'Santé',
-    finances:'Finances',emails:'Emails',objectifs:'Objectifs',contrats:'Contrats & Abonnements',securite:'Sécurité'};
+    finances:'Finances',emails:'Emails',objectifs:'Objectifs',contrats:'Contrats & Abonnements',heures:'Heures travaillées',securite:'Sécurité'};
   document.getElementById('page-title').textContent=titles[currentView]||'';
   document.getElementById('content').innerHTML=VIEWS[currentView]?.()||'';
 }
@@ -1616,6 +1746,27 @@ function renderMessages(){
 function setInput(btn){
   document.getElementById('chatInput').value=btn.textContent;
   document.getElementById('sendBtn').disabled=false;
+}
+
+function addHeure() {
+  const date = document.getElementById('h-date')?.value;
+  const heures = parseFloat(document.getElementById('h-heures')?.value);
+  const taux = parseFloat(document.getElementById('h-taux')?.value) || 12.50;
+  const lieu = document.getElementById('h-lieu')?.value?.trim() || '';
+  if(!date || !heures || heures <= 0) { alert('Remplis la date et les heures'); return; }
+  const stored = (() => { try { return JSON.parse(localStorage.getItem('mum_heures') || '[]'); } catch(e) { return []; } })();
+  stored.push({date, heures, taux, lieu});
+  stored.sort((a,b) => a.date.localeCompare(b.date));
+  try { localStorage.setItem('mum_heures', JSON.stringify(stored)); } catch(e) {}
+  // Refresh view
+  document.getElementById('content').innerHTML = VIEWS.heures?.() || '';
+}
+
+function deleteHeure(idx) {
+  const stored = (() => { try { return JSON.parse(localStorage.getItem('mum_heures') || '[]'); } catch(e) { return []; } })();
+  stored.splice(idx, 1);
+  try { localStorage.setItem('mum_heures', JSON.stringify(stored)); } catch(e) {}
+  document.getElementById('content').innerHTML = VIEWS.heures?.() || '';
 }
 
 function openChat(){
