@@ -743,14 +743,67 @@ function updateClock(){
 }
 updateClock(); setInterval(updateClock,1000);
 
+// ─── CALENDAR DATA (synced from iPhone) ───
+const CALENDAR_EVENTS = [
+  // Arsenal
+  {dt:'2026-10-24',time:'16:00',end:'17:45',title:'Arsenal - Everton',cal:'Arsenal',location:'Emirates Stadium, London',color:'#EF0107'},
+  {dt:'2026-10-27',time:'21:00',end:'22:45',title:'Fleetwood - Arsenal',cal:'Arsenal',location:'Highbury Stadium, Fleetwood',color:'#EF0107'},
+  {dt:'2026-11-01',time:'17:30',end:'19:15',title:'Liverpool - Arsenal',cal:'Arsenal',location:'Anfield, Liverpool',color:'#EF0107'},
+  {dt:'2026-11-04',time:'21:00',end:'22:45',title:'Slavia Prague - Arsenal',cal:'Arsenal',location:'Fortuna Arena, Prague',color:'#EF0107'},
+  {dt:'2026-11-07',time:'16:00',end:'17:45',title:'Arsenal - Hull',cal:'Arsenal',location:'Emirates Stadium, London',color:'#EF0107'},
+  {dt:'2026-11-21',time:'18:30',end:'20:15',title:'Newcastle - Arsenal',cal:'Arsenal',location:'St James\' Park, Newcastle',color:'#EF0107'},
+  // Strasbourg
+  {dt:'2026-10-25',time:'17:15',end:'19:00',title:'Rennes - Strasbourg',cal:'Strasbourg',location:'Roazhon Park, Rennes',color:'#005BAA'},
+  {dt:'2026-11-01',time:'15:00',end:'16:45',title:'Strasbourg - AJ Auxerre',cal:'Strasbourg',location:'Stade de la Meinau',color:'#005BAA'},
+  {dt:'2026-11-06',time:'20:45',end:'22:30',title:'Toulouse - Strasbourg',cal:'Strasbourg',location:'Stadium de Toulouse',color:'#005BAA'},
+  {dt:'2026-11-21',time:'20:45',end:'22:30',title:'Strasbourg - Brest',cal:'Strasbourg',location:'Stade de la Meinau',color:'#005BAA'},
+  // Personnel
+  {dt:'2026-10-26',time:'20:00',end:'21:00',title:'🗑 Poubelles',cal:'Personnel',location:'',color:'#D40002',recur:true},
+  {dt:'2026-10-28',time:'20:00',end:'21:00',title:'♻️ Recyclage',cal:'Personnel',location:'',color:'#30B050',recur:true},
+  {dt:'2026-11-02',time:'20:00',end:'21:00',title:'🗑 Poubelles',cal:'Personnel',location:'',color:'#D40002',recur:true},
+  {dt:'2026-11-09',time:'20:00',end:'21:00',title:'🗑 Poubelles',cal:'Personnel',location:'',color:'#D40002',recur:true},
+  {dt:'2026-11-11',time:'20:00',end:'21:00',title:'♻️ Recyclage',cal:'Personnel',location:'',color:'#30B050',recur:true},
+  {dt:'2026-11-16',time:'20:00',end:'21:00',title:'🗑 Poubelles',cal:'Personnel',location:'',color:'#D40002',recur:true},
+  {dt:'2026-11-23',time:'20:00',end:'21:00',title:'🗑 Poubelles',cal:'Personnel',location:'',color:'#D40002',recur:true},
+  // Anniversaires
+  {dt:'2026-10-30',allDay:true,title:'🎂 Berger Lionel (40 ans)',cal:'Anniversaires',location:'',color:'#FF9F0A'},
+  {dt:'2026-11-07',allDay:true,title:'🎂 Schneider Vincent (42 ans)',cal:'Anniversaires',location:'',color:'#FF9F0A'},
+  // Perso
+  {dt:'2026-10-24',time:'19:00',end:'20:00',title:'Brigitte Martial anniversaire 120 ans',cal:'Jerome Veit',location:'',color:'#FF9F0A'},
+  // Jours fériés
+  {dt:'2026-10-25',allDay:true,title:'🕐 Heure d\'hiver',cal:'Fériés',location:'',color:'#8E8E93'},
+  {dt:'2026-11-01',allDay:true,title:'🏖 Toussaint (férié)',cal:'Fériés',location:'',color:'#8E8E93'},
+  {dt:'2026-11-11',allDay:true,title:'🏖 Armistice 1918 (férié)',cal:'Fériés',location:'',color:'#8E8E93'},
+];
+
+function getEventsForDate(dateStr) {
+  return CALENDAR_EVENTS.filter(e => e.dt === dateStr).sort((a,b)=>{
+    if(a.allDay && !b.allDay) return -1;
+    if(!a.allDay && b.allDay) return 1;
+    return (a.time||'00:00').localeCompare(b.time||'00:00');
+  });
+}
+function getEventsForRange(startStr, endStr) {
+  return CALENDAR_EVENTS.filter(e => e.dt >= startStr && e.dt <= endStr);
+}
+function fmtDate(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+}
+function fmtDateShort(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+}
+function isToday(dateStr) {
+  return dateStr === new Date().toISOString().slice(0,10);
+}
+function isFuture(dateStr) {
+  return dateStr >= new Date().toISOString().slice(0,10);
+}
+
 // ─── DATA (mock réaliste) ───
 const DATA = {
-  agenda: [
-    {time:'09:00',end:'09:30',title:'Stand-up équipe',type:'pro',location:'Visio'},
-    {time:'12:30',end:'13:30',title:'Déjeuner — Le Comptoir',type:'social',location:'Lyon 2e'},
-    {time:'15:00',end:'16:00',title:'Call investisseurs',type:'pro',location:'Visio'},
-    {time:'18:30',end:'19:30',title:'Sport — salle de sport',type:'santé',location:'Gym Plus'},
-  ],
+  agenda: [], // replaced by CALENDAR_EVENTS
   sante: {
     sleep:  {val:'—',goal:'8h',pct:0,   trend:'Connecter HealthKit'},
     steps:  {val:'—', goal:'10 000',pct:0,trend:'Connecter HealthKit'},
@@ -840,18 +893,37 @@ const VIEWS = {
           <span class="section-link" onclick="navigate(document.querySelector('[data-view=agenda]'))">Tout voir</span>
         </div>
         <div class="card-body">
-          ${DATA.agenda.map(e=>`
-            <div class="list-row">
-              <div class="list-dot" style="background:${typeColor(e.type)}"></div>
-              <div class="list-main">
-                <div class="list-title">${e.title}</div>
-                <div class="list-sub">${e.location}</div>
-              </div>
-              <div style="text-align:right;flex-shrink:0">
-                <div class="list-meta">${e.time}</div>
-                <span class="chip chip-neutral" style="margin-top:2px">${e.type}</span>
-              </div>
-            </div>`).join('')}
+          ${(()=>{
+            const today = new Date().toISOString().slice(0,10);
+            const todayEvts = getEventsForDate(today);
+            if(todayEvts.length===0) {
+              // Show next events
+              const upcoming = CALENDAR_EVENTS.filter(e=>e.dt>today).sort((a,b)=>a.dt.localeCompare(b.dt)).slice(0,3);
+              if(upcoming.length===0) return '<div style="font-size:12px;color:var(--text-3);padding:4px 0">Aucun événement à venir</div>';
+              return '<div style="font-size:11px;color:var(--text-3);margin-bottom:8px">Pas d\'événement aujourd\'hui — prochains :</div>'+upcoming.map(e=>`
+                <div class="list-row">
+                  <div class="list-dot" style="background:${e.color||'var(--accent)'}"></div>
+                  <div class="list-main">
+                    <div class="list-title">${e.title}</div>
+                    <div class="list-sub">${fmtDateShort(e.dt)}${e.location?' · '+e.location:''}</div>
+                  </div>
+                  <div style="text-align:right;flex-shrink:0">
+                    <div class="list-meta">${e.allDay?'Journée':e.time}</div>
+                  </div>
+                </div>`).join('');
+            }
+            return todayEvts.map(e=>`
+              <div class="list-row">
+                <div class="list-dot" style="background:${e.color||'var(--accent)'}"></div>
+                <div class="list-main">
+                  <div class="list-title">${e.title}</div>
+                  <div class="list-sub">${e.location||e.cal}</div>
+                </div>
+                <div style="text-align:right;flex-shrink:0">
+                  <div class="list-meta">${e.allDay?'Journée':e.time}</div>
+                </div>
+              </div>`).join('');
+          })()}
         </div>
       </div>
 
@@ -909,27 +981,54 @@ const VIEWS = {
   },
 
   agenda() {
-    return `
-      <div class="section-hd"><div class="section-title">Agenda</div></div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Aujourd'hui — ${new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}</span></div>
-        <div class="card-body">
-          ${DATA.agenda.map(e=>`
-            <div class="list-row">
-              <div class="list-dot" style="background:${typeColor(e.type)};width:10px;height:10px"></div>
-              <div class="list-main">
-                <div class="list-title">${e.title}</div>
-                <div class="list-sub">${e.location} · ${e.time}–${e.end}</div>
-              </div>
-              <span class="chip chip-neutral">${e.type}</span>
-            </div>`).join('')}
+    const today = new Date().toISOString().slice(0,10);
+    // Build next 30 days grouped by date
+    const days = [];
+    for(let i=0;i<30;i++){
+      const d = new Date(); d.setDate(d.getDate()+i);
+      const ds = d.toISOString().slice(0,10);
+      const evts = getEventsForDate(ds);
+      if(evts.length>0 || i===0) days.push({ds, evts});
+    }
+
+    function evtRow(e) {
+      const timeStr = e.allDay ? 'Journée' : `${e.time}–${e.end}`;
+      return `<div class="list-row" style="align-items:flex-start;padding:8px 0">
+        <div style="width:10px;height:10px;border-radius:50%;background:${e.color||'var(--accent)'};margin-top:4px;flex-shrink:0"></div>
+        <div class="list-main" style="margin-left:10px">
+          <div class="list-title" style="font-size:13.5px">${e.title}</div>
+          <div class="list-sub" style="font-size:11.5px">${timeStr}${e.location?' · '+e.location:''}</div>
         </div>
+        <span style="font-size:10px;color:var(--text-3);white-space:nowrap;margin-left:6px;padding-top:2px">${e.cal}</span>
+      </div>`;
+    }
+
+    const sections = days.map(({ds, evts})=>{
+      const label = isToday(ds) ? `Aujourd'hui — ${fmtDate(ds)}` : fmtDate(ds);
+      const todayStyle = isToday(ds) ? 'border-left:3px solid var(--accent);padding-left:10px;' : '';
+      return `<div class="card" style="margin-bottom:10px;${isToday(ds)?'border-color:var(--accent)':''}">
+        <div class="card-header" style="${todayStyle}">
+          <span class="card-title" style="font-size:13px;font-weight:${isToday(ds)?700:600}">${label}</span>
+        </div>
+        <div class="card-body" style="padding-top:2px">
+          ${evts.length>0 ? evts.map(evtRow).join('') : '<div style="font-size:12px;color:var(--text-3);padding:6px 0">Aucun événement</div>'}
+        </div>
+      </div>`;
+    }).join('');
+
+    // Cal legend
+    const cals = [...new Set(CALENDAR_EVENTS.map(e=>e.cal))];
+    const calColors = {'Arsenal':'#EF0107','Strasbourg':'#005BAA','Personnel':'#D40002','Anniversaires':'#FF9F0A','Jerome Veit':'#FF9F0A','Fériés':'#8E8E93'};
+    const legend = cals.map(c=>`<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-2)"><div style="width:8px;height:8px;border-radius:50%;background:${calColors[c]||'var(--accent)'}"></div>${c}</div>`).join('');
+
+    return `
+      <div class="section-hd">
+        <div class="section-title">Agenda</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">${legend}</div>
       </div>
-      <div class="connect-card">
-        <div class="connect-icon">📅</div>
-        <div class="connect-title">Connecter Apple Calendars</div>
-        <div class="connect-sub">Synchronise automatiquement tous tes calendriers Apple (iCloud, iCal). Lecture seule — l'IA ne modifie rien sans ta confirmation.</div>
-        <button class="connect-btn">Connecter via CalDAV</button>
+      ${sections}
+      <div style="text-align:center;padding:16px 0;font-size:12px;color:var(--text-3)">
+        ✓ Synchronisé depuis ton iPhone · ${CALENDAR_EVENTS.length} événements
       </div>`;
   },
 
