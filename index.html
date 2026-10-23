@@ -984,53 +984,134 @@ const VIEWS = {
 
   agenda() {
     const today = new Date().toISOString().slice(0,10);
-    // Build next 30 days grouped by date
+    const icsEvts = AG_getICSEvents();
+    const contratEvts = AG_getContratEvents();
+    const serreEvts = AG_getSerreTasks(today, 60);
+    const allEvts = [...icsEvts, ...contratEvts, ...serreEvts];
+
+    // Week view: current week Mon-Sun
+    const now = new Date();
+    const dow = (now.getDay()+6)%7; // 0=Mon
+    const weekStart = new Date(now); weekStart.setDate(now.getDate()-dow);
+    const weekDays = [];
+    for(let i=0;i<7;i++){
+      const d=new Date(weekStart); d.setDate(weekStart.getDate()+i);
+      const ds=d.toISOString().slice(0,10);
+      const dayEvts=allEvts.filter(e=>e.dt===ds);
+      weekDays.push({ds,d,dayEvts});
+    }
+    const weekCells = weekDays.map(({ds,d,dayEvts})=>{
+      const isT=isToday(ds);
+      const hasSerre=dayEvts.some(e=>e.cal==='Serre');
+      const dots=dayEvts.slice(0,3).map(e=>`<div style="width:5px;height:5px;border-radius:50%;background:${e.color||'var(--accent)'}"></div>`).join('');
+      return `<div onclick="AG_setView('list','${ds}')" style="flex:1;text-align:center;padding:6px 2px;cursor:pointer;border-radius:8px;${isT?'background:var(--accent);color:#fff;':''}${hasSerre&&!isT?'background:rgba(52,199,89,.12);':''}">
+        <div style="font-size:9px;opacity:.7">${d.toLocaleDateString('fr-FR',{weekday:'short'}).slice(0,3).toUpperCase()}</div>
+        <div style="font-size:16px;font-weight:${isT?700:500};margin:2px 0">${d.getDate()}</div>
+        <div style="display:flex;justify-content:center;gap:2px;min-height:7px">${dots}</div>
+      </div>`;
+    }).join('');
+
+    // List view: 30 days from AG_listStart
+    const listStart = AG_listStart || today;
     const days = [];
     for(let i=0;i<30;i++){
-      const d = new Date(); d.setDate(d.getDate()+i);
-      const ds = d.toISOString().slice(0,10);
-      const evts = getEventsForDate(ds);
-      if(evts.length>0 || i===0) days.push({ds, evts});
+      const d=new Date(listStart+'T12:00:00'); d.setDate(d.getDate()+i);
+      const ds=d.toISOString().slice(0,10);
+      const evts=allEvts.filter(e=>e.dt===ds).sort((a,b)=>{
+        if(a.allDay&&!b.allDay)return -1; if(!a.allDay&&b.allDay)return 1;
+        return (a.time||'00:00').localeCompare(b.time||'00:00');
+      });
+      if(evts.length>0||ds===today) days.push({ds,evts});
     }
 
     function evtRow(e) {
-      const timeStr = e.allDay ? 'Journée' : `${e.time}–${e.end}`;
-      return `<div class="list-row" style="align-items:flex-start;padding:8px 0">
-        <div style="width:10px;height:10px;border-radius:50%;background:${e.color||'var(--accent)'};margin-top:4px;flex-shrink:0"></div>
-        <div class="list-main" style="margin-left:10px">
-          <div class="list-title" style="font-size:13.5px">${e.title}</div>
+      const timeStr=e.allDay?'Journée':`${e.time}${e.end?'–'+e.end:''}`;
+      const isSerre=e.cal==='Serre';
+      const doneKey=`ag_serre_${e.dt}_${e.id}`;
+      const isDone=(() => { try { return localStorage.getItem(doneKey)==='1'; } catch(e){ return false; } })();
+      return `<div class="list-row" style="align-items:flex-start;padding:7px 0;${isDone&&isSerre?'opacity:.45':''}">
+        <div style="width:10px;height:10px;border-radius:${isSerre?'2px':'50%'};background:${e.color||'var(--accent)'};margin-top:4px;flex-shrink:0${isSerre&&isDone?';opacity:.5':''}"></div>
+        <div class="list-main" style="margin-left:10px;flex:1">
+          <div class="list-title" style="font-size:13.5px;${isDone?'text-decoration:line-through':''}">${e.title}</div>
           <div class="list-sub" style="font-size:11.5px">${timeStr}${e.location?' · '+e.location:''}</div>
         </div>
-        <span style="font-size:10px;color:var(--text-3);white-space:nowrap;margin-left:6px;padding-top:2px">${e.cal}</span>
+        <div style="display:flex;align-items:center;gap:6px;margin-left:6px">
+          <span style="font-size:10px;color:var(--text-3);white-space:nowrap">${e.cal}</span>
+          ${isSerre?`<button onclick="AG_toggleSerre('${doneKey}','${e.dt}')" style="border:none;background:${isDone?'var(--accent)':'var(--surface-2)'};color:${isDone?'#fff':'var(--text-2)'};border-radius:10px;font-size:10px;padding:2px 7px;cursor:pointer">${isDone?'✓ Fait':'Fait'}</button>`:''}
+        </div>
       </div>`;
     }
 
-    const sections = days.map(({ds, evts})=>{
-      const label = isToday(ds) ? `Aujourd'hui — ${fmtDate(ds)}` : fmtDate(ds);
-      const todayStyle = isToday(ds) ? 'border-left:3px solid var(--accent);padding-left:10px;' : '';
-      return `<div class="card" style="margin-bottom:10px;${isToday(ds)?'border-color:var(--accent)':''}">
-        <div class="card-header" style="${todayStyle}">
+    const sections = days.map(({ds,evts})=>{
+      const label=isToday(ds)?`Aujourd'hui — ${fmtDate(ds)}`:fmtDate(ds);
+      const hasSerre=evts.some(e=>e.cal==='Serre');
+      return `<div class="card" style="margin-bottom:10px;${isToday(ds)?'border-color:var(--accent)':''}${hasSerre?'border-left:2px solid #34C759':''}" id="ag-day-${ds}">
+        <div class="card-header" style="${isToday(ds)?'border-left:3px solid var(--accent);padding-left:10px;':''}">
           <span class="card-title" style="font-size:13px;font-weight:${isToday(ds)?700:600}">${label}</span>
+          ${hasSerre?`<span style="font-size:10px;color:#34C759;margin-left:6px">🌱 Serre</span>`:''}
         </div>
         <div class="card-body" style="padding-top:2px">
-          ${evts.length>0 ? evts.map(evtRow).join('') : '<div style="font-size:12px;color:var(--text-3);padding:6px 0">Aucun événement</div>'}
+          ${evts.length>0?evts.map(evtRow).join(''):'<div style="font-size:12px;color:var(--text-3);padding:6px 0">Aucun événement</div>'}
         </div>
       </div>`;
     }).join('');
 
-    // Cal legend
-    const cals = [...new Set(CALENDAR_EVENTS.map(e=>e.cal))];
-    const calColors = {'Arsenal':'#EF0107','Strasbourg':'#005BAA','Personnel':'#D40002','Anniversaires':'#FF9F0A','Jerome Veit':'#FF9F0A','Fériés':'#8E8E93'};
-    const legend = cals.map(c=>`<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-2)"><div style="width:8px;height:8px;border-radius:50%;background:${calColors[c]||'var(--accent)'}"></div>${c}</div>`).join('');
+    // ICS info bar
+    const icsCount = icsEvts.length;
+    const lastImport = (() => { try { const d=localStorage.getItem('ag_ics_date'); return d?new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'jamais'; } catch(e){ return 'jamais'; } })();
 
     return `
-      <div class="section-hd">
-        <div class="section-title">Agenda</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">${legend}</div>
+      <div class="section-hd" style="padding-bottom:0">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div class="section-title">Agenda</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button onclick="AG_importICS()" style="border:none;background:var(--accent);color:#fff;border-radius:20px;font-size:11.5px;padding:5px 12px;cursor:pointer">↑ Importer .ics</button>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:4px">
+          ${icsCount>0?`${icsCount} événements iCloud · importé le ${lastImport}`:'Aucun calendrier importé · exporte depuis iCloud.com puis importe ici'}
+        </div>
       </div>
-      ${sections}
+
+      <!-- Semaine -->
+      <div class="card" style="margin-top:10px">
+        <div class="card-header"><span class="card-title" style="font-size:12px">Semaine du ${weekStart.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</span></div>
+        <div class="card-body" style="padding-top:4px">
+          <div style="display:flex;gap:2px">${weekCells}</div>
+        </div>
+      </div>
+
+      <!-- Module Serre -->
+      <div class="card" style="margin-top:10px;border-left:3px solid #34C759" id="ag-serre-card">
+        <div class="card-header" style="padding-bottom:4px">
+          <span class="card-title">🌱 Tâches Serre</span>
+          <span style="font-size:11px;color:#34C759;margin-left:6px">Récurrentes</span>
+        </div>
+        <div class="card-body" style="padding-top:0" id="ag-serre-today"></div>
+      </div>
+
+      <!-- Import modal -->
+      <div id="ag-import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center">
+        <div style="background:var(--surface-1);border-radius:16px;padding:20px;max-width:340px;width:90%;margin:auto">
+          <div style="font-weight:600;margin-bottom:8px">Importer calendrier iCloud</div>
+          <div style="font-size:12px;color:var(--text-2);margin-bottom:14px;line-height:1.5">
+            1. Va sur <b>icloud.com</b> → Calendrier<br>
+            2. Clique sur un calendrier → ⋯ → Exporter<br>
+            3. Importe le fichier .ics ici
+          </div>
+          <input type="file" id="ag-ics-input" accept=".ics" style="display:none" onchange="AG_processICS(this)">
+          <button onclick="document.getElementById('ag-ics-input').click()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:13px;cursor:pointer;margin-bottom:8px">Choisir le fichier .ics</button>
+          <button onclick="document.getElementById('ag-import-modal').style.display='none'" style="width:100%;padding:8px;background:var(--surface-2);color:var(--text-1);border:none;border-radius:10px;font-size:13px;cursor:pointer">Annuler</button>
+        </div>
+      </div>
+
+      <!-- Liste -->
+      <div style="margin-top:10px" id="ag-list-container">
+        ${sections}
+      </div>
+
       <div style="text-align:center;padding:16px 0;font-size:12px;color:var(--text-3)">
-        ✓ Synchronisé depuis ton iPhone · ${CALENDAR_EVENTS.length} événements
+        iCloud · Contrats · Serre — ${allEvts.length} événements sur 30 jours
       </div>`;
   },
 
@@ -1756,8 +1837,238 @@ function navigate(el){
     finances:'Finances',emails:'Emails',objectifs:'Objectifs',contrats:'Contrats & Abonnements',heures:'Heures travaillées',securite:'Sécurité'};
   document.getElementById('page-title').textContent=titles[currentView]||'';
   document.getElementById('content').innerHTML=VIEWS[currentView]?.()||'';
+  if(currentView==='agenda') setTimeout(AG_renderPost,50);
 }
 navigate(null);
+
+// ─── AGENDA ───
+let AG_listStart = null;
+
+// Couleurs calendriers ICS par nom
+const AG_CAL_COLORS = {
+  'arsenal':'#EF0107','strasbourg':'#005BAA','personnel':'#D40002',
+  'anniversaires':'#FF9F0A','jérome veit':'#FF9F0A','jerome veit':'#FF9F0A',
+  'fériés':'#8E8E93','feries':'#8E8E93','vacances':'#5AC8FA','travail':'#007AFF',
+  'famille':'#FF9F0A','serre':'#34C759'
+};
+function AG_calColor(name) {
+  const k=(name||'').toLowerCase();
+  for(const [key,col] of Object.entries(AG_CAL_COLORS)) if(k.includes(key)) return col;
+  return 'var(--accent)';
+}
+
+// ── Parse ICS ──
+function AG_parseICS(text) {
+  const events = [];
+  const blocks = text.split(/BEGIN:VEVENT/g).slice(1);
+  for(const block of blocks) {
+    try {
+      const get = (key) => {
+        const m = block.match(new RegExp(key+'(?:;[^:]*)?:([^\\r\\n]+)'));
+        return m ? m[1].trim() : '';
+      };
+      const dtRaw = get('DTSTART') || get('DTSTART;VALUE=DATE') || get('DTSTART;TZID=[^:]*');
+      const dtEndRaw = get('DTEND') || '';
+      const summary = (get('SUMMARY')||'(Sans titre)').replace(/\\,/g,',').replace(/\\n/g,' ');
+      const location = (get('LOCATION')||'').replace(/\\,/g,',');
+      // Parse date
+      let dt='', time='', end='', allDay=false;
+      const dtM = dtRaw.replace(/\s/g,'');
+      if(dtM.length===8) { // DATE only
+        dt = `${dtM.slice(0,4)}-${dtM.slice(4,6)}-${dtM.slice(6,8)}`;
+        allDay = true;
+      } else if(dtM.length>=15) {
+        dt = `${dtM.slice(0,4)}-${dtM.slice(4,6)}-${dtM.slice(6,8)}`;
+        time = `${dtM.slice(9,11)}:${dtM.slice(11,13)}`;
+      }
+      if(dtEndRaw) {
+        const deM = dtEndRaw.replace(/\s/g,'');
+        if(deM.length>=15) end = `${deM.slice(9,11)}:${deM.slice(11,13)}`;
+      }
+      // Cal name from X-WR-CALNAME or PRODID
+      const calM = text.match(/X-WR-CALNAME:([^\r\n]+)/);
+      const cal = calM ? calM[1].trim() : 'iCloud';
+      if(dt) events.push({dt,time,end,title:summary,location,cal,color:AG_calColor(cal),allDay,src:'ics'});
+    } catch(e) {}
+  }
+  return events;
+}
+
+function AG_getICSEvents() {
+  try {
+    const raw = localStorage.getItem('mum_ag_ics');
+    return raw ? JSON.parse(raw) : CALENDAR_EVENTS.map(e=>({...e,src:'static'}));
+  } catch(e) { return CALENDAR_EVENTS.map(e=>({...e,src:'static'})); }
+}
+
+// ── Contrats → events ──
+function AG_getContratEvents() {
+  const evts = [];
+  try {
+    const data = loadContrats();
+    const year = new Date().getFullYear();
+    for(const a of (data.assurances||[])) {
+      if(!a.echeance) continue;
+      const [dd,mm] = a.echeance.split('/');
+      // Current year and next year
+      for(const y of [year, year+1]) {
+        const dt = `${y}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+        const today = new Date().toISOString().slice(0,10);
+        if(dt >= today) {
+          evts.push({dt,allDay:true,title:`⚠️ Échéance ${a.nom}`,cal:'Contrats',color:'#FF9500',location:'',src:'contrat',id:`contrat-${a.id}-${y}`});
+          break; // only next occurrence
+        }
+      }
+    }
+    for(const ab of (data.abonnements||[])) {
+      if(!ab.jour) continue;
+      const now = new Date();
+      const today = now.toISOString().slice(0,10);
+      // Next occurrence this or next month
+      for(let delta=0;delta<=2;delta++) {
+        const d = new Date(now.getFullYear(), now.getMonth()+delta, ab.jour);
+        const ds = d.toISOString().slice(0,10);
+        if(ds >= today) {
+          evts.push({dt:ds,allDay:true,title:`💳 ${ab.nom} ${ab.montant}€`,cal:'Abonnements',color:'#5E5CE6',location:'',src:'abo',id:`abo-${ab.id}-${delta}`});
+          break;
+        }
+      }
+    }
+  } catch(e) {}
+  return evts;
+}
+
+// ── Serre tâches récurrentes ──
+const AG_SERRE_TASKS = [
+  {id:'arrosage',title:'💧 Arrosage serre',freq:2,color:'#34C759',note:'Toutes les 48h'},
+  {id:'poissons',title:'🐟 Nourrissage poissons',freq:1,color:'#5AC8FA',note:'Quotidien'},
+  {id:'ph',title:'🧪 Contrôle pH / température',freq:7,color:'#FF9500',note:'Hebdomadaire'},
+  {id:'semis',title:'🌱 Vérifier semis',freq:3,color:'#30B050',note:'Tous les 3 jours'},
+  {id:'recolte',title:'🥬 Tour de récolte',freq:5,color:'#34C759',note:'Tous les 5 jours'},
+];
+
+function AG_getSerreTasks(fromDate, days) {
+  const evts = [];
+  const start = new Date(fromDate+'T12:00:00');
+  for(const task of AG_SERRE_TASKS) {
+    for(let i=0;i<days;i++) {
+      if(i % task.freq === 0) {
+        const d = new Date(start); d.setDate(start.getDate()+i);
+        const ds = d.toISOString().slice(0,10);
+        evts.push({dt:ds,allDay:true,title:task.title,cal:'Serre',color:task.color,location:task.note,src:'serre',id:task.id});
+      }
+    }
+  }
+  return evts;
+}
+
+function AG_renderSerreToday() {
+  const el = document.getElementById('ag-serre-today');
+  if(!el) return;
+  const today = new Date().toISOString().slice(0,10);
+  const tasks = AG_SERRE_TASKS.map(t => {
+    const doneKey = `ag_serre_${today}_${t.id}`;
+    const isDone = (() => { try { return localStorage.getItem(doneKey)==='1'; } catch(e){ return false; } })();
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;${isDone?'opacity:.45':''}">
+        <div style="width:8px;height:8px;border-radius:2px;background:${t.color}"></div>
+        <div>
+          <div style="font-size:13px;${isDone?'text-decoration:line-through':''}">${t.title}</div>
+          <div style="font-size:11px;color:var(--text-3)">${t.note}</div>
+        </div>
+      </div>
+      <button onclick="AG_toggleSerre('${doneKey}','${today}')" style="border:none;background:${isDone?'#34C759':'var(--surface-2)'};color:${isDone?'#fff':'var(--text-2)'};border-radius:14px;font-size:11px;padding:4px 10px;cursor:pointer;flex-shrink:0">${isDone?'✓ Fait':'Fait'}</button>
+    </div>`;
+  }).join('');
+  el.innerHTML = tasks;
+}
+
+function AG_toggleSerre(key, dateStr) {
+  try {
+    const cur = localStorage.getItem(key)==='1';
+    if(cur) localStorage.removeItem(key); else localStorage.setItem(key,'1');
+  } catch(e) {}
+  // Re-render
+  AG_renderSerreToday();
+  const listEl = document.getElementById('ag-list-container');
+  if(listEl) {
+    // Rebuild list section for that date
+    const icsEvts = AG_getICSEvents();
+    const contratEvts = AG_getContratEvents();
+    const today = new Date().toISOString().slice(0,10);
+    const serreEvts = AG_getSerreTasks(today,60);
+    const allEvts = [...icsEvts,...contratEvts,...serreEvts];
+    const dayEl = document.getElementById(`ag-day-${dateStr}`);
+    if(dayEl) {
+      const evts = allEvts.filter(e=>e.dt===dateStr).sort((a,b)=>{
+        if(a.allDay&&!b.allDay)return -1; if(!a.allDay&&b.allDay)return 1;
+        return (a.time||'00:00').localeCompare(b.time||'00:00');
+      });
+      // Re-render that day's rows
+      const body = dayEl.querySelector('.card-body');
+      if(body) {
+        body.innerHTML = evts.map(e=>{
+          const isSerre=e.cal==='Serre';
+          const doneKey2=`ag_serre_${e.dt}_${e.id}`;
+          const isDone2=(() => { try { return localStorage.getItem(doneKey2)==='1'; } catch(e2){ return false; } })();
+          const timeStr=e.allDay?'Journée':`${e.time}${e.end?'–'+e.end:''}`;
+          return `<div class="list-row" style="align-items:flex-start;padding:7px 0;${isDone2&&isSerre?'opacity:.45':''}">
+            <div style="width:10px;height:10px;border-radius:${isSerre?'2px':'50%'};background:${e.color||'var(--accent)'};margin-top:4px;flex-shrink:0"></div>
+            <div class="list-main" style="margin-left:10px;flex:1">
+              <div class="list-title" style="font-size:13.5px;${isDone2?'text-decoration:line-through':''}">${e.title}</div>
+              <div class="list-sub" style="font-size:11.5px">${timeStr}${e.location?' · '+e.location:''}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-left:6px">
+              <span style="font-size:10px;color:var(--text-3);white-space:nowrap">${e.cal}</span>
+              ${isSerre?`<button onclick="AG_toggleSerre('${doneKey2}','${e.dt}')" style="border:none;background:${isDone2?'var(--accent)':'var(--surface-2)'};color:${isDone2?'#fff':'var(--text-2)'};border-radius:10px;font-size:10px;padding:2px 7px;cursor:pointer">${isDone2?'✓ Fait':'Fait'}</button>`:''}
+            </div>
+          </div>`;
+        }).join('') || '<div style="font-size:12px;color:var(--text-3);padding:6px 0">Aucun événement</div>';
+      }
+    }
+  }
+}
+
+function AG_setView(type, ds) {
+  AG_listStart = ds || new Date().toISOString().slice(0,10);
+  document.getElementById('content').innerHTML = VIEWS.agenda?.() || '';
+  if(ds) {
+    setTimeout(()=>{ const el=document.getElementById(`ag-day-${ds}`); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },100);
+  }
+  AG_renderSerreToday();
+}
+
+function AG_importICS() {
+  document.getElementById('ag-import-modal').style.display='flex';
+}
+
+function AG_processICS(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const text = ev.target.result;
+      const events = AG_parseICS(text);
+      localStorage.setItem('mum_ag_ics', JSON.stringify(events));
+      localStorage.setItem('ag_ics_date', new Date().toISOString());
+      document.getElementById('ag-import-modal').style.display='none';
+      document.getElementById('content').innerHTML = VIEWS.agenda?.() || '';
+      AG_renderSerreToday();
+      // Toast
+      const t=document.createElement('div');
+      t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#34C759;color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;z-index:9999;pointer-events:none';
+      t.textContent=`✓ ${events.length} événements importés`;
+      document.body.appendChild(t);
+      setTimeout(()=>t.remove(),2500);
+    } catch(e) { alert('Erreur lors de la lecture du fichier .ics'); }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function AG_renderPost() {
+  AG_renderSerreToday();
+}
 
 // ─── CHAT ───
 const INITIAL_MSGS=[
